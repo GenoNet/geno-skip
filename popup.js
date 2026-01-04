@@ -3,6 +3,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const urlTextarea = document.getElementById('videoUrl');
     const saveButton = document.getElementById('saveButton');
     const saveMessage = document.getElementById('saveMessage');
+    const genoIcon = document.getElementById('genoIcon');
+
+    // ジーノくんアイコンをクリック
+    genoIcon.addEventListener('click', function() {
+        chrome.tabs.create({
+            url: 'https://youtu.be/4-UbHw8eDzM?si=t8Kg0D0C2ZGCjKXW&t=0s'
+        });
+    });
 
     // 設定を読み込む
     chrome.storage.sync.get(['accelerationKey', 'videoUrls'], function(result) {
