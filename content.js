@@ -73,6 +73,12 @@ function normalizeVideos() {
     });
 }
 
+const observer = new MutationObserver(function(mutations) {
+    if (isActive) {
+        accelerateVideos();
+    }
+});
+
 observer.observe(document.body, {
     childList: true,
     subtree: true

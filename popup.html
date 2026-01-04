@@ -59,10 +59,19 @@
             color: #666;
             margin-top: 5px;
         }
+        h2 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        h2 img {
+            width: 32px;
+            height: 32px;
+        }
     </style>
 </head>
 <body>
-<h2>GenoSkip 設定</h2>
+<h2><img src="icon48.png">GenoSkip 設定</h2>
 
 <div class="setting-group">
     <label for="accelerationKey">加速キー（デフォルト: S）:</label>
@@ -77,7 +86,10 @@
 </div>
 
 <button id="saveButton">設定を保存</button>
-<div id="saveMessage" style="margin-top: 10px; text-align: center; color: green; display: none;">保存されました</div>
+<div id="saveMessage" style="margin-top: 10px; text-align: center; color: green; display: none;">
+    <div style="font-weight: bold;">保存されました</div>
+    <div style="font-size: 12px; margin-top: 5px;">※ タブを更新後、設定が有効になります</div>
+</div>
 
 <script src="popup.js"></script>
 </body>
