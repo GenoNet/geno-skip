@@ -1,22 +1,23 @@
 let isActive = false;
 let accelerationKey = 'S';
-let skipKey = 'D';
 let videoUrls = ['youtube.com', 'nicovideo.jp'];
-let skipButtonSelectors = ['.ytp-skip-ad-button', '.skip-button'];
+let autoRevertTimer = null;
+
+function broadcastAccelerationState() {
+    try {
+        chrome.runtime.sendMessage({ type: 'ACCEL_STATE', isActive });
+    } catch (e) {
+        // ignore
+    }
+}
 
 // 設定を読み込む
-chrome.storage.sync.get(['accelerationKey', 'skipKey', 'videoUrls', 'skipButtonSelectors'], function(result) {
+chrome.storage.sync.get(['accelerationKey', 'videoUrls'], function(result) {
     if (result.accelerationKey) {
         accelerationKey = result.accelerationKey.toUpperCase();
     }
-    if (result.skipKey) {
-        skipKey = result.skipKey.toUpperCase();
-    }
     if (result.videoUrls && result.videoUrls.length > 0) {
         videoUrls = result.videoUrls;
-    }
-    if (result.skipButtonSelectors && result.skipButtonSelectors.length > 0) {
-        skipButtonSelectors = result.skipButtonSelectors;
     }
 });
 
@@ -46,12 +47,6 @@ document.addEventListener('keydown', function(event) {
         event.preventDefault();
         toggleAdAcceleration();
     }
-
-    // スキップキー処理
-    if (event.key.toUpperCase() === skipKey) {
-        event.preventDefault();
-        skipAd();
-    }
 });
 
 function toggleAdAcceleration() {
@@ -59,9 +54,24 @@ function toggleAdAcceleration() {
     
     if (isActive) {
         accelerateVideos();
+        // 3秒後に自動で元速へ戻す
+        if (autoRevertTimer) {
+            clearTimeout(autoRevertTimer);
+        }
+        autoRevertTimer = setTimeout(() => {
+            normalizeVideos();
+            isActive = false;
+            autoRevertTimer = null;
+            broadcastAccelerationState();
+        }, 3000);
     } else {
         normalizeVideos();
+        if (autoRevertTimer) {
+            clearTimeout(autoRevertTimer);
+            autoRevertTimer = null;
+        }
     }
+    broadcastAccelerationState();
 }
 
 function accelerateVideos() {
@@ -90,49 +100,6 @@ function normalizeVideos() {
     });
 }
 
-function skipAd() {
-    // 設定されたセレクタから最初にマッチするボタンを検索
-    let skipButton = null;
-    for (let selector of skipButtonSelectors) {
-        skipButton = document.querySelector(selector);
-        if (skipButton) {
-            console.log('スキップボタン検出:', selector, skipButton);
-            break;
-        }
-    }
-    
-    if (skipButton) {
-        // マウスイベントをシミュレート
-        const mouseDownEvent = new MouseEvent('mousedown', {
-            bubbles: true,
-            cancelable: true,
-            view: window
-        });
-        const mouseUpEvent = new MouseEvent('mouseup', {
-            bubbles: true,
-            cancelable: true,
-            view: window
-        });
-        const clickEvent = new MouseEvent('click', {
-            bubbles: true,
-            cancelable: true,
-            view: window
-        });
-        
-        skipButton.dispatchEvent(mouseDownEvent);
-        skipButton.dispatchEvent(mouseUpEvent);
-        skipButton.dispatchEvent(clickEvent);
-        
-        // スキップボタンをクリックしたら即座に加速を解除
-        if (isActive) {
-            normalizeVideos();
-            isActive = false;
-        }
-    } else {
-        console.log('スキップボタンが見つかりません');
-    }
-}
-
 const observer = new MutationObserver(function(mutations) {
     if (isActive) {
         accelerateVideos();
@@ -149,5 +116,15 @@ document.addEventListener('click', function() {
     if (isActive) {
         normalizeVideos();
         isActive = false;
+    }
+});
+
+// ポップアップからのメッセージで加速をトグル
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message && message.type === 'TOGGLE_ACCELERATION') {
+        toggleAdAcceleration();
+        sendResponse({ isActive });
+    } else if (message && message.type === 'REQUEST_STATE') {
+        sendResponse({ isActive });
     }
 });

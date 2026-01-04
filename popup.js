@@ -1,11 +1,10 @@
 document.addEventListener('DOMContentLoaded', function() {
     const keyInput = document.getElementById('accelerationKey');
-    const skipKeyInput = document.getElementById('skipKey');
     const urlTextarea = document.getElementById('videoUrl');
-    const selectorsTextarea = document.getElementById('skipButtonSelectors');
     const saveButton = document.getElementById('saveButton');
     const saveMessage = document.getElementById('saveMessage');
     const genoIcon = document.getElementById('genoIcon');
+    const goButton = document.getElementById('goButton');
 
     // ジーノくんアイコンをクリック
     genoIcon.addEventListener('click', function() {
@@ -15,17 +14,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // 設定を読み込む
-    chrome.storage.sync.get(['accelerationKey', 'skipKey', 'videoUrls', 'skipButtonSelectors'], function(result) {
+    chrome.storage.sync.get(['accelerationKey', 'videoUrls'], function(result) {
         if (result.accelerationKey) {
             keyInput.value = result.accelerationKey;
         } else {
             keyInput.value = 'S';
-        }
-
-        if (result.skipKey) {
-            skipKeyInput.value = result.skipKey;
-        } else {
-            skipKeyInput.value = 'D';
         }
 
         if (result.videoUrls && result.videoUrls.length > 0) {
@@ -33,37 +26,58 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             urlTextarea.value = 'youtube.com\nnicovideo.jp';
         }
-
-        if (result.skipButtonSelectors && result.skipButtonSelectors.length > 0) {
-            selectorsTextarea.value = result.skipButtonSelectors.join('\n');
-        } else {
-            selectorsTextarea.value = '.ytp-skip-ad-button\n.skip-button';
-        }
     });
 
     // 保存ボタン
     saveButton.addEventListener('click', function() {
         const key = keyInput.value.toUpperCase() || 'S';
-        const skipKey = skipKeyInput.value.toUpperCase() || 'D';
         const urls = urlTextarea.value
             .split('\n')
             .map(url => url.trim())
             .filter(url => url.length > 0);
-        const selectors = selectorsTextarea.value
-            .split('\n')
-            .map(selector => selector.trim())
-            .filter(selector => selector.length > 0);
 
         chrome.storage.sync.set({
             accelerationKey: key,
-            skipKey: skipKey,
-            videoUrls: urls,
-            skipButtonSelectors: selectors
+            videoUrls: urls
         }, function() {
             saveMessage.style.display = 'block';
             setTimeout(() => {
                 saveMessage.style.display = 'none';
             }, 2000);
+        });
+    });
+
+    // Go/Stop ボタンで加速トグル
+    function updateGoLabel(active) {
+        goButton.textContent = active ? 'Stop!' : 'Go!';
+        goButton.style.background = active ? '#e53935' : '#4CAF50';
+    }
+
+    goButton.addEventListener('click', () => {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (!tabs || !tabs.length) return;
+            chrome.tabs.sendMessage(tabs[0].id, { type: 'TOGGLE_ACCELERATION' }, (response) => {
+                if (response && typeof response.isActive === 'boolean') {
+                    updateGoLabel(response.isActive);
+                }
+            });
+        });
+    });
+
+    // コンテンツ側からの状態通知を反映
+    chrome.runtime.onMessage.addListener((message) => {
+        if (message && message.type === 'ACCEL_STATE' && typeof message.isActive === 'boolean') {
+            updateGoLabel(message.isActive);
+        }
+    });
+
+    // ポップアップ表示時に現在状態を問い合わせ
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs || !tabs.length) return;
+        chrome.tabs.sendMessage(tabs[0].id, { type: 'REQUEST_STATE' }, (response) => {
+            if (response && typeof response.isActive === 'boolean') {
+                updateGoLabel(response.isActive);
+            }
         });
     });
 });

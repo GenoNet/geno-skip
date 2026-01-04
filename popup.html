@@ -59,47 +59,53 @@
             color: #666;
             margin-top: 5px;
         }
-        h2 {
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .title {
             display: flex;
             align-items: center;
             gap: 8px;
+            margin: 0;
         }
-        h2 img {
+        .title img {
             width: 32px;
             height: 32px;
             cursor: pointer;
         }
-        h2 img:hover {
+        .title img:hover {
             opacity: 0.7;
             transition: opacity 0.2s;
+        }
+        .go-button {
+            width: 80px;
+            padding: 8px 14px;
+            margin: 0;
+            background: #4CAF50;
+            text-align: center;
         }
     </style>
 </head>
 <body>
-<h2><img id="genoIcon" src="icon48.png">GenoSkip 設定</h2>
+<div class="header">
+    <h2 class="title"><img id="genoIcon" src="icon48.png">GenoSkip 設定</h2>
+    <button id="goButton" class="go-button">Go!</button>
+</div>
 
 <div class="setting-group">
-    <label for="accelerationKey">加速キー（デフォルト: S）:</label>
+    <label for="accelerationKey">加速キー（デフォルト: S）</label>
     <input type="text" id="accelerationKey" maxlength="1" placeholder="S">
     <div class="info">1文字のキーを入力してください</div>
 </div>
 
 <div class="setting-group">
-    <label for="skipKey">スキップキー（デフォルト: D）:</label>
-    <input type="text" id="skipKey" maxlength="1" placeholder="D">
-    <div class="info">1文字のキーを入力してください</div>
-</div>
-
-<div class="setting-group">
-    <label for="videoUrl">対応する動画サイトURL:</label>
+    <label for="videoUrl">対応する動画サイトURL</label>
     <textarea id="videoUrl" placeholder="youtube.com&#10;nicovideo.jp&#10;..."></textarea>
     <div class="info">1行につき1つのURLパターン（例: youtube.com）</div>
-</div>
-
-<div class="setting-group">
-    <label for="skipButtonSelectors">スキップ対象Class名:</label>
-    <textarea id="skipButtonSelectors" placeholder=".ytp-skip-ad-button&#10;.skip-button&#10;..."></textarea>
-    <div class="info">1行につき1つのCSSセレクタ（例: .skip-button）</div>
 </div>
 
 <button id="saveButton">設定を保存</button>
