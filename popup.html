@@ -85,9 +85,21 @@
 </div>
 
 <div class="setting-group">
+    <label for="skipKey">スキップキー（デフォルト: D）:</label>
+    <input type="text" id="skipKey" maxlength="1" placeholder="D">
+    <div class="info">1文字のキーを入力してください</div>
+</div>
+
+<div class="setting-group">
     <label for="videoUrl">対応する動画サイトURL:</label>
     <textarea id="videoUrl" placeholder="youtube.com&#10;nicovideo.jp&#10;..."></textarea>
     <div class="info">1行につき1つのURLパターン（例: youtube.com）</div>
+</div>
+
+<div class="setting-group">
+    <label for="skipButtonSelectors">スキップ対象Class名:</label>
+    <textarea id="skipButtonSelectors" placeholder=".ytp-skip-ad-button&#10;.skip-button&#10;..."></textarea>
+    <div class="info">1行につき1つのCSSセレクタ（例: .skip-button）</div>
 </div>
 
 <button id="saveButton">設定を保存</button>
