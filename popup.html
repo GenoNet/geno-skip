@@ -1,10 +1,84 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>GenoSkip</title>
-    <script src="popup.js"></script>
+    <style>
+        body {
+            width: 300px;
+            padding: 15px;
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+        }
+        .setting-group {
+            margin-bottom: 20px;
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: bold;
+            color: #333;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            width: 100%;
+            height: 80px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
 </head>
 <body>
-<button id="controlButton">Go!</button>
+<h2>GenoSkip 設定</h2>
+
+<div class="setting-group">
+    <label for="accelerationKey">加速キー（デフォルト: S）:</label>
+    <input type="text" id="accelerationKey" maxlength="1" placeholder="S">
+    <div class="info">1文字のキーを入力してください</div>
+</div>
+
+<div class="setting-group">
+    <label for="videoUrl">対応する動画サイトURL:</label>
+    <textarea id="videoUrl" placeholder="youtube.com&#10;nicovideo.jp&#10;..."></textarea>
+    <div class="info">1行につき1つのURLパターン（例: youtube.com）</div>
+</div>
+
+<button id="saveButton">設定を保存</button>
+<div id="saveMessage" style="margin-top: 10px; text-align: center; color: green; display: none;">保存されました</div>
+
+<script src="popup.js"></script>
 </body>
 </html>
