@@ -143,6 +143,7 @@
     let effect = null, destroyed = false;
     function remove() {
       window.removeEventListener('scroll', position, true);
+      if (effect) video.classList.remove('geno-skip-effect-blur');
       effect?.remove();
       effect = null;
     }
@@ -177,6 +178,7 @@
           face.style.backgroundPosition = Math.random() < .5 ? 'left center' : 'right center';
           effect.append(face);
           root.append(effect);
+          video.classList.add('geno-skip-effect-blur');
           window.addEventListener('scroll', position, true);
           loadFaceSource().then(source => {
             if (face.isConnected) face.style.backgroundImage = `url("${source}")`;

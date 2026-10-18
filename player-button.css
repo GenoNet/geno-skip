@@ -118,6 +118,10 @@ button.geno-skip-button:not(.ytp-button):focus-visible { outline: 2px solid #fff
   text-overflow: ellipsis;
 }
 @keyframes geno-skip-spin { to { transform: rotate(360deg); } }
+video.geno-skip-effect-blur {
+  filter: blur(10px) !important;
+  clip-path: inset(0) !important;
+}
 .geno-skip-effect {
   position: absolute !important;
   box-sizing: border-box;
@@ -142,7 +146,7 @@ button.geno-skip-button:not(.ytp-button):focus-visible { outline: 2px solid #fff
   background-size: 200% 100%;
   background-position: right center;
   background-repeat: no-repeat;
-  animation: geno-skip-spin 700ms linear infinite;
+  animation: geno-skip-spin 1s linear infinite;
 }
 @media (prefers-reduced-motion: reduce) {
   .geno-skip-button[aria-pressed="true"] .geno-skip-face, .geno-skip-effect-face { animation: none; }

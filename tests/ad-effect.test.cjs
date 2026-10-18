@@ -38,6 +38,7 @@ test('the central effect stays off for ads and manual acceleration until enabled
 
 test('enabled ad effect is large, rotating, embedded and centered on the video', async t => {
   const page = await setup(t);
+  await page.locator('video').evaluate(video => { video.style.filter = 'brightness(0.8)'; });
   await setAd(page, true);
   await page.waitForFunction(() => document.querySelector('.geno-skip-effect-face')?.style.backgroundImage.startsWith('url("data:image/png;base64,'));
   const bounds = await centered(page);
@@ -50,12 +51,16 @@ test('enabled ad effect is large, rotating, embedded and centered on the video',
     return Math.abs(e.width - v.width) < 1 && Math.abs(e.height - v.height) < 1 && getComputedStyle(element).overflow === 'hidden';
   }), true);
   assert.equal(await effect.locator('.geno-skip-effect-face').evaluate(face => getComputedStyle(face).animationName), 'geno-skip-spin');
+  assert.equal(await effect.locator('.geno-skip-effect-face').evaluate(face => getComputedStyle(face).animationDuration), '1s');
+  assert.equal(await page.locator('video').evaluate(video => getComputedStyle(video).filter), 'blur(10px)');
+  assert.equal(await effect.locator('.geno-skip-effect-face').evaluate(face => getComputedStyle(face).filter), 'none');
   assert.equal(await effect.evaluate(element => {
     const r = element.getBoundingClientRect();
     return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2).matches('video');
   }), true);
   await setAd(page, false);
   await page.waitForFunction(() => !document.querySelector('.geno-skip-effect'));
+  assert.equal(await page.locator('video').evaluate(video => getComputedStyle(video).filter), 'brightness(0.8)');
 });
 
 test('keyboard and popup acceleration show the effect and remove it when stopped or timed out', async t => {
@@ -64,12 +69,15 @@ test('keyboard and popup acceleration show the effect and remove it when stopped
   await page.keyboard.press('s');
   assert.equal(await page.locator('.geno-skip-effect').count(), 1);
   assert.equal((await videoState(page)).muted, true);
+  assert.equal(await page.locator('video').evaluate(video => getComputedStyle(video).filter), 'blur(10px)');
   await page.keyboard.press('s');
   assert.equal(await page.locator('.geno-skip-effect').count(), 0);
+  assert.equal(await page.locator('video').evaluate(video => getComputedStyle(video).filter), 'none');
   await page.evaluate(() => window.toggleMessage());
   assert.equal(await page.locator('.geno-skip-effect').count(), 1);
   await page.clock.runFor(3100);
   assert.equal(await page.locator('.geno-skip-effect').count(), 0);
+  assert.equal(await page.locator('video').evaluate(video => getComputedStyle(video).filter), 'none');
   assert.deepEqual(await videoState(page), { rate: 1, volume: 1, muted: false });
 });
 
