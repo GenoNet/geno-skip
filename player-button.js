@@ -139,41 +139,50 @@
     return anchor;
   }
 
-  function createAdEffect(root, video) {
-    let effect = null, positioned = false, destroyed = false;
+  function createEffect(root, video) {
+    let effect = null, destroyed = false;
     function remove() {
+      window.removeEventListener('scroll', position, true);
       effect?.remove();
       effect = null;
-      if (positioned) root.classList.remove('geno-skip-effect-host');
-      positioned = false;
+    }
+    function pixels(value) { return `${Number(value.toFixed(3))}px`; }
+    function setStyle(property, value) {
+      if (effect.style[property] !== value) effect.style[property] = value;
+    }
+    function position() {
+      if (!effect) return;
+      const media = video.getBoundingClientRect(), box = effect.getBoundingClientRect();
+      const style = getComputedStyle(effect);
+      const scaleX = box.width / parseFloat(style.width) || 1, scaleY = box.height / parseFloat(style.height) || 1;
+      setStyle('width', pixels(media.width / scaleX));
+      setStyle('height', pixels(media.height / scaleY));
+      const size = pixels(Math.max(0, Math.min(480, media.width / scaleX, media.height / scaleY * 1.25)));
+      if (effect.style.getPropertyValue('--geno-effect-size') !== size) effect.style.setProperty('--geno-effect-size', size);
+      // Use the overlay's own geometry so a static video wrapper can stay static.
+      const placed = effect.getBoundingClientRect();
+      setStyle('left', pixels(parseFloat(effect.style.left) + (media.left + media.width / 2 - placed.left - placed.width / 2) / scaleX));
+      setStyle('top', pixels(parseFloat(effect.style.top) + (media.top + media.height / 2 - placed.top - placed.height / 2) / scaleY));
     }
     return {
       setVisible(visible) {
         if (destroyed || !visible || !video.isConnected || !root.isConnected) { remove(); return; }
         if (!effect) {
-          positioned = getComputedStyle(root).position === 'static';
-          if (positioned) root.classList.add('geno-skip-effect-host');
           effect = document.createElement('div');
           effect.className = 'geno-skip-effect';
           effect.setAttribute('aria-hidden', 'true');
+          Object.assign(effect.style, { left: '0px', top: '0px', width: '1px', height: '1px' });
           const face = document.createElement('span');
           face.className = 'geno-skip-effect-face';
+          face.style.backgroundPosition = Math.random() < .5 ? 'left center' : 'right center';
           effect.append(face);
           root.append(effect);
+          window.addEventListener('scroll', position, true);
           loadFaceSource().then(source => {
             if (face.isConnected) face.style.backgroundImage = `url("${source}")`;
           }).catch(error => console.warn('じーのの顔が読めなかったぞ！', error.message));
         }
-        const parent = root.getBoundingClientRect(), media = video.getBoundingClientRect();
-        const scaleX = parent.width / root.offsetWidth || 1, scaleY = parent.height / root.offsetHeight || 1;
-        const values = {
-          left: `${(media.left + media.width / 2 - parent.left) / scaleX - root.clientLeft + root.scrollLeft}px`,
-          top: `${(media.top + media.height / 2 - parent.top) / scaleY - root.clientTop + root.scrollTop}px`,
-          width: `${Math.max(0, Math.min(192, media.width / scaleX * .4, media.height / scaleY * .5))}px`
-        };
-        for (const [property, value] of Object.entries(values)) {
-          if (effect.style[property] !== value) effect.style[property] = value;
-        }
+        position();
       },
       destroy() { destroyed = true; remove(); }
     };
@@ -226,7 +235,7 @@
       anchor.after(dock);
     }
     const tooltip = createTooltip(button, controls ? root : dock, !!controls);
-    const effect = createAdEffect(root, video);
+    const effect = createEffect(root, video);
     // The renderer only sees embedded PNG data, never a cross-origin extension URL.
     loadFaceSource().then(source => {
       if (face.isConnected) face.style.backgroundImage = `url("${source}")`;
@@ -247,7 +256,7 @@
         updateLabel();
       },
       setShortcut(value) { shortcut = value; updateLabel(); },
-      setAdEffect(active) { effect.setVisible(active); },
+      setEffect(active) { effect.setVisible(active); },
       destroy() {
         effect.destroy();
         tooltip.destroy();

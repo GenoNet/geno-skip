@@ -50,6 +50,18 @@ test('ignores acceleration notifications from another tab',async t=>{
   await page.evaluate(()=>window.testMessageListeners.forEach(fn=>fn({type:'ACCEL_STATE',isActive:true},{tab:{id:10}})));
   assert.equal(await page.locator('#goButton').textContent(),'Stop!');
 });
+test('popup shows SKIP progress separately from errors and updates only for its active tab',async t=>{
+  const page=await popup(t,{response:{isActive:true,skipStatus:'SKIP：ボタン待ち',reason:'待ってくれ！'}});
+  assert.equal(await page.locator('#skipStatus').count(),1);
+  assert.equal(await page.locator('#skipStatus').textContent(),'SKIP：ボタン待ち');
+  assert.equal(await page.locator('#statusMessage').textContent(),'待ってくれ！');
+  await page.evaluate(()=>window.testMessageListeners.forEach(fn=>fn({type:'ACCEL_STATE',isActive:true,skipStatus:'別のタブ'},{tab:{id:99}})));
+  assert.equal(await page.locator('#skipStatus').textContent(),'SKIP：ボタン待ち');
+  await page.evaluate(()=>window.testMessageListeners.forEach(fn=>fn({type:'ACCEL_STATE',isActive:true,skipStatus:'SKIP：入力中'},{tab:{id:10}})));
+  assert.equal(await page.locator('#skipStatus').textContent(),'SKIP：入力中');
+  await page.evaluate(()=>window.testMessageListeners.forEach(fn=>fn({type:'ACCEL_STATE',isActive:false},{tab:{id:10}})));
+  assert.equal(await page.locator('#skipStatus').isVisible(),false);
+});
 test('storage failure is shown and never claimed as saved',async t=>{
   const page=await popup(t);
   await page.evaluate(()=>{chrome.storage.sync.set=(data,cb)=>{chrome.runtime.lastError={message:'quota'};cb();delete chrome.runtime.lastError;};});

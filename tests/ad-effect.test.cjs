@@ -18,21 +18,22 @@ async function setAd(page, active) {
 }
 async function centered(page) {
   return page.locator('.geno-skip-effect').evaluate(effect => {
-    const e = effect.getBoundingClientRect(), v = document.querySelector('video').getBoundingClientRect();
-    return { x: Math.abs((e.left + e.right - v.left - v.right) / 2), y: Math.abs((e.top + e.bottom - v.top - v.bottom) / 2), width: e.width };
+    const e = effect.querySelector('.geno-skip-effect-face').getBoundingClientRect(), v = document.querySelector('video').getBoundingClientRect();
+    return { x: Math.abs((e.left + e.right - v.left - v.right) / 2), y: Math.abs((e.top + e.bottom - v.top - v.bottom) / 2), faceSize: effect.querySelector('.geno-skip-effect-face').offsetWidth };
   });
 }
 
-test('the central ad effect is absent by default and during manual acceleration', async t => {
+test('the central effect stays off for ads and manual acceleration until enabled', async t => {
   const page = await setup(t, { local: { debuggerSkip: false } });
   await setAd(page, true);
   await page.waitForTimeout(50);
   assert.equal(await page.locator('.geno-skip-effect').count(), 0);
   await setAd(page, false);
-  await page.evaluate(() => window.updateLocalSettings({ showSkipEffect: true }));
   await page.keyboard.press('s');
   assert.equal((await videoState(page)).rate, 16);
   assert.equal(await page.locator('.geno-skip-effect').count(), 0);
+  await page.evaluate(() => window.updateLocalSettings({ showSkipEffect: true }));
+  assert.equal(await page.locator('.geno-skip-effect').count(), 1);
 });
 
 test('enabled ad effect is large, rotating, embedded and centered on the video', async t => {
@@ -40,10 +41,14 @@ test('enabled ad effect is large, rotating, embedded and centered on the video',
   await setAd(page, true);
   await page.waitForFunction(() => document.querySelector('.geno-skip-effect-face')?.style.backgroundImage.startsWith('url("data:image/png;base64,'));
   const bounds = await centered(page);
-  assert.ok(bounds.width > 100 && bounds.width <= 192);
+  assert.ok(bounds.faceSize >= 430 && bounds.faceSize <= 432, JSON.stringify(bounds));
   assert.ok(bounds.x < 1 && bounds.y < 1, JSON.stringify(bounds));
   const effect = page.locator('.geno-skip-effect');
   assert.equal(await effect.getAttribute('aria-hidden'), 'true');
+  assert.equal(await effect.evaluate(element => {
+    const e = element.getBoundingClientRect(), v = document.querySelector('video').getBoundingClientRect();
+    return Math.abs(e.width - v.width) < 1 && Math.abs(e.height - v.height) < 1 && getComputedStyle(element).overflow === 'hidden';
+  }), true);
   assert.equal(await effect.locator('.geno-skip-effect-face').evaluate(face => getComputedStyle(face).animationName), 'geno-skip-spin');
   assert.equal(await effect.evaluate(element => {
     const r = element.getBoundingClientRect();
@@ -51,6 +56,47 @@ test('enabled ad effect is large, rotating, embedded and centered on the video',
   }), true);
   await setAd(page, false);
   await page.waitForFunction(() => !document.querySelector('.geno-skip-effect'));
+});
+
+test('keyboard and popup acceleration show the effect and remove it when stopped or timed out', async t => {
+  const page = await setup(t);
+  await page.clock.install();
+  await page.keyboard.press('s');
+  assert.equal(await page.locator('.geno-skip-effect').count(), 1);
+  assert.equal((await videoState(page)).muted, true);
+  await page.keyboard.press('s');
+  assert.equal(await page.locator('.geno-skip-effect').count(), 0);
+  await page.evaluate(() => window.toggleMessage());
+  assert.equal(await page.locator('.geno-skip-effect').count(), 1);
+  await page.clock.runFor(3100);
+  assert.equal(await page.locator('.geno-skip-effect').count(), 0);
+  assert.deepEqual(await videoState(page), { rate: 1, volume: 1, muted: false });
+});
+
+test('each effect chooses a random face and keeps it during the same acceleration', async t => {
+  const page = await setup(t);
+  await page.evaluate(() => { window.faceChoice = .1; Math.random = () => window.faceChoice; });
+  await page.keyboard.press('s');
+  const face = page.locator('.geno-skip-effect-face');
+  assert.equal(await face.evaluate(element => getComputedStyle(element).backgroundPositionX), '0%');
+  await page.evaluate(() => { window.faceChoice = .9; window.updateLocalSettings({ showSkipEffect: true }); });
+  assert.equal(await face.evaluate(element => getComputedStyle(element).backgroundPositionX), '0%');
+  await page.keyboard.press('s');
+  await page.evaluate(() => window.toggleMessage());
+  assert.equal(await face.evaluate(element => getComputedStyle(element).backgroundPositionX), '100%');
+});
+
+test('manual effects preserve an absolute video inside a static wrapper', async t => {
+  const page = await openPage(t, { hostname: 'www.nicovideo.jp', html: '<div style="position:relative;width:640px;height:360px"><div id="inner"><video style="position:absolute;inset:0;width:100%;height:100%"></video></div></div>', local: { debuggerSkip: false, showSkipEffect: true } });
+  await loadContent(page);
+  const before = await page.locator('video').boundingBox();
+  await page.evaluate(() => window.toggleMessage());
+  await page.waitForTimeout(100);
+  assert.deepEqual(await videoState(page), { rate: 16, volume: 1, muted: true });
+  assert.deepEqual(await page.locator('video').boundingBox(), before);
+  assert.equal(await page.locator('.geno-skip-effect').count(), 1);
+  const bounds = await centered(page);
+  assert.ok(bounds.x < 1 && bounds.y < 1, JSON.stringify(bounds));
 });
 
 test('effect settings apply immediately and leave one overlay after repeated updates', async t => {

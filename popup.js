@@ -9,6 +9,7 @@
     const debuggerInput = document.getElementById('debuggerSkip');
     const effectInput = document.getElementById('showSkipEffect');
     const debuggerStatus = document.getElementById('debuggerStatus');
+    const skipStatus = document.getElementById('skipStatus');
     const saveButton = document.getElementById('saveButton');
     let currentTabId = null;
     saveButton.disabled = true;
@@ -32,10 +33,12 @@
         chrome.tabs.sendMessage(currentTabId, { type }, response => {
           if (chrome.runtime.lastError || !response || typeof response.isActive !== 'boolean') {
             updateGoLabel(false);
+            skipStatus.textContent = '';
             showStatus('動画ページを開いてくれ！拡張を更新したらタブも再読み込み！', true);
             return;
           }
           updateGoLabel(response.isActive);
+          skipStatus.textContent = response.skipStatus || '';
           showStatus(response.reason || '', !!response.reason);
         });
       });
@@ -85,6 +88,7 @@
     chrome.runtime.onMessage.addListener((message, sender) => {
       if (sender.tab?.id === currentTabId && message?.type === 'ACCEL_STATE' && typeof message.isActive === 'boolean') {
         updateGoLabel(message.isActive);
+        skipStatus.textContent = message.skipStatus || '';
         showStatus(message.reason || '', !!message.reason);
       }
     });

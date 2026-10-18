@@ -28,7 +28,7 @@
     button:hover { filter: brightness(.95); }
     :focus-visible { outline: 2px solid #9c6a23; outline-offset: 2px; }
     #statusMessage { margin: 12px 0; color: #48603b; font-size: 12px; overflow-wrap: anywhere; }
-    #statusMessage:empty, #debuggerStatus:empty { display: none; }
+    #statusMessage:empty, #debuggerStatus:empty, #skipStatus:empty { display: none; }
     #statusMessage[data-error="true"] { color: #a13b27; }
     @keyframes geno-popup-spin { to { transform: rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) { #genoIcon.is-active { animation: none; } }
@@ -55,6 +55,7 @@
     <label class="toggle" for="showSkipEffect"><input id="showSkipEffect" type="checkbox">ぶっとばし演出表示</label>
     <p class="info" id="debuggerStatus" role="status" aria-live="polite"></p>
   </div>
+  <p class="info" id="skipStatus" role="status" aria-live="polite"></p>
   <p id="statusMessage" role="status" aria-live="polite"></p>
   <button id="saveButton" type="button">設定を保存</button>
   <script src="settings.js"></script>

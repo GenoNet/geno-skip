@@ -6,6 +6,23 @@
   const fastAttempts = 3;
   const maxRateAttempts = 3;
   const maxDebugPreparations = 5;
+  const statusText = Object.freeze({
+    'page-changed': 'ページが切り替わった',
+    'button-missing': 'ボタンを見失った',
+    'ad-changed': '広告の表示が変わった',
+    'button-unavailable': 'まだ押せない',
+    'button-covered': 'ボタンが隠れてる',
+    'invalid-page': 'このページには入力できない',
+    'settings-changed': '設定が変わった',
+    disabled: '実クリックOFF',
+    'site-disabled': 'サイト登録なし',
+    busy: '前の入力を待ってる',
+    'preparation-refused': '入力の準備をやり直し中',
+    'input-sent': '入力送信済み・広告の終了待ち',
+    cancelled: '入力を中断した',
+    'input-error': '入力に失敗',
+    'no-response': '入力の応答なし'
+  });
 
   function available(button, hitTest = false) {
     if (typeof button.click !== 'function' || button.matches(':disabled') ||
@@ -23,6 +40,7 @@
     let frame = null, timer = null, destroyed = false;
     let acceleration = null, cancelled = false, rejected = new WeakSet();
     let pending = null;
+    let lastStatus = '';
     let debuggerMode = useDebugger?.() === true;
     function cancelPending() {
       if (!pending) return;
@@ -32,7 +50,7 @@
       onStateChange?.();
     }
     function requestDebugSkip(button, record) {
-      const request = { button, token: crypto.randomUUID(), prepared: false };
+      const request = { button, token: crypto.randomUUID(), prepared: false, attempt: record.attempts };
       // Reserve input before the page can replace a video and cancel pending state.
       record.inputs++;
       pending = request;
@@ -43,6 +61,7 @@
         request.finished = true;
         // Only an explicit no-input response can spare a click from the limit.
         if (response?.sent === false) record.inputs--;
+        if (record.attempts === request.attempt) record.status = response?.status || (response?.sent === true ? 'input-sent' : 'no-response');
         if (pending !== request) return;
         cancelPending();
         if (response?.reason) onSkipError?.(response.reason);
@@ -132,6 +151,11 @@
       }
     }
     function check(records = []) {
+      checkState(records);
+      const status = getStatus();
+      if (status !== lastStatus) { lastStatus = status; onStateChange?.(); }
+    }
+    function checkState(records = []) {
       if (destroyed || !root.isConnected) { cancelPending(); cancelCheck(); stopAcceleration(); return; }
       if (Array.isArray(records)) {
         // Class transitions can be batched, with the root already back in its ad state.
@@ -192,7 +216,20 @@
     }
     const mediaEvents = ['loadstart', 'loadedmetadata'];
     mediaEvents.forEach(type => root.addEventListener(type, onMediaLoad, true));
-    return { check,
+    function getStatus() {
+      if (destroyed || !root.isConnected || !root.matches('.ad-showing, .ad-interrupting')) return '';
+      if (!useDebugger?.()) return 'SKIP：実クリックOFF';
+      if (pending) return 'SKIP：入力中';
+      const buttons = [...root.querySelectorAll(selector)].map(control =>
+        control.matches('button, [role="button"]') ? control : control.querySelector('button, [role="button"]') || control)
+        .filter(button => button.closest('.html5-video-player') === root);
+      if (!buttons.length) return 'SKIP：ボタン待ち';
+      const button = buttons.find(button => available(button, true));
+      if (!button) return buttons.some(button => available(button)) ? 'SKIP：ボタンが隠れてる' : 'SKIP：まだ押せない';
+      const record = clicked.get(button);
+      return `SKIP：${statusText[record?.status] || '入力待ち'}`;
+    }
+    return { check, getStatus,
       prepareSkip(token) {
         if (!pending || pending.token !== token || !useDebugger?.() || destroyed || !root.isConnected ||
             !root.matches('.ad-showing, .ad-interrupting') || pending.button.closest('.html5-video-player') !== root || !available(pending.button)) return false;

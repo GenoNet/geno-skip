@@ -19,11 +19,14 @@
   const supported = () => ready && pageActive && settingsApi.matches(location.hostname, settings.videoUrls);
   const adAccelerationFor = video => [...adSkippers.values()].find(skipper => skipper.isAccelerating(video));
   const videoIsActive = video => session?.video === video || !!adAccelerationFor(video);
-  const getAccelerationState = () => ({ isActive: !!session || !!adAccelerationFor(), ...(reason ? { reason } : {}) });
+  const getAccelerationState = () => {
+    const skipStatus = [...adSkippers.values()].map(skipper => skipper.getStatus()).find(Boolean);
+    return { isActive: !!session || !!adAccelerationFor(), ...(reason ? { reason } : {}), ...(skipStatus ? { skipStatus } : {}) };
+  };
 
   function updateButton(video, button) {
     button.setActive(videoIsActive(video));
-    button.setAdEffect(settings.showSkipEffect && [...adSkippers.values()].some(skipper => skipper.isSkipping(video)));
+    button.setEffect(settings.showSkipEffect && (session?.video === video || [...adSkippers.values()].some(skipper => skipper.isSkipping(video))));
   }
 
   function publishState() {
