@@ -12,6 +12,18 @@ test('restores exact rate, zero volume and existing mute', async t => {
   assert.deepEqual(await videoState(page), { rate: 1.5, volume: 0, muted: true });
 });
 
+test('manual acceleration remutes after a player volume change and restores audio on stop',async t=>{
+  const page=await openPage(t);
+  await loadContent(page);
+  await page.keyboard.press('s');
+  const muted=await page.locator('video').evaluate(video=>{
+    video.muted=false;video.dispatchEvent(new Event('volumechange'));return video.muted;
+  });
+  assert.equal(muted,true);
+  await page.keyboard.press('s');
+  assert.deepEqual(await videoState(page),{rate:1,volume:1,muted:false});
+});
+
 test('click cancellation broadcasts state and cancels its old timer', async t => {
   const page = await openPage(t);
   await page.clock.install();

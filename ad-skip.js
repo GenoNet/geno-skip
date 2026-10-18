@@ -46,10 +46,36 @@
       if (!acceleration) return;
       const saved = acceleration;
       acceleration = null;
+      saved.video.removeEventListener('volumechange', onVolumeChange);
       for (const [property, value] of [['playbackRate', saved.rate], ['muted', saved.muted]]) {
         try { saved.video[property] = value; } catch { /* Keep restoring the other property if one fails. */ }
       }
       onStateChange?.();
+    }
+    function muteAcceleration() {
+      if (!acceleration || acceleration.video.muted) return;
+      if (acceleration.muteAttempts >= 3) throw new Error('Mute repeatedly reset');
+      acceleration.muteAttempts++;
+      acceleration.video.muted = true;
+      if (!acceleration.video.muted) throw new Error('Mute rejected');
+    }
+    function onVolumeChange() {
+      try { muteAcceleration(); } catch {
+        rejected.add(acceleration.video);
+        stopAcceleration();
+        onSkipError?.('プレーヤーにミュートを戻された！加速をやめるぞ！');
+      }
+    }
+    function prepareMediaForSkip() {
+      onBeforeSkip?.();
+      if (!acceleration) return;
+      // Restore speed before the site switches videos, but keep the ad silent until it ends.
+      try {
+        const previousRate = acceleration.video.playbackRate;
+        acceleration.video.playbackRate = acceleration.rate;
+        if (previousRate === 16 && acceleration.rate !== 16 && acceleration.video.playbackRate === acceleration.rate) acceleration.resumeRate = true;
+      } catch { /* Audio ownership still needs to be retained. */ }
+      onVolumeChange();
     }
     function accelerate() {
       const video = getVideo?.();
@@ -58,17 +84,20 @@
       if (acceleration && video.playbackRate === 16 && video.muted) return;
       if (!acceleration) {
         onBeforeAccelerate?.(video);
-        acceleration = { video, rate: video.playbackRate, muted: video.muted, attempts: 0 };
+        acceleration = { video, rate: video.playbackRate, muted: video.muted, attempts: 0, muteAttempts: 0 };
+        video.addEventListener('volumechange', onVolumeChange);
       }
       try {
         if (video.playbackRate !== 16) {
-          if (acceleration.attempts >= maxRateAttempts) throw new Error('Rate repeatedly reset');
-          acceleration.attempts++;
+          if (!acceleration.resumeRate) {
+            if (acceleration.attempts >= maxRateAttempts) throw new Error('Rate repeatedly reset');
+            acceleration.attempts++;
+          }
+          acceleration.resumeRate = false;
           video.playbackRate = 16;
           if (video.playbackRate !== 16) throw new Error('Rate rejected');
         }
-        video.muted = true;
-        if (!video.muted) throw new Error('Mute rejected');
+        muteAcceleration();
         onStateChange?.();
       } catch {
         rejected.add(video);
@@ -106,6 +135,7 @@
       scheduleCheck();
       const debug = useDebugger?.() === true;
       if (debug !== debuggerMode) { cancelPending(); clicked = new WeakMap(); debuggerMode = debug; }
+      if (pending?.prepared && acceleration && acceleration.video !== getVideo?.()) cancelPending();
       if (!pending?.prepared) accelerate();
       if (pending) return;
       for (const control of root.querySelectorAll(selector)) {
@@ -122,10 +152,10 @@
         clicked.set(button, { attempts: (previous?.attempts || 0) + 1, time: now });
         if (debug) { requestDebugSkip(button); break; }
         // Use the site's exposed skip control; never enable a countdown or seek past an ad.
-        stopAcceleration();
-        onBeforeSkip?.();
+        prepareMediaForSkip();
         button.click();
         if (root.matches('.ad-showing, .ad-interrupting')) accelerate();
+        else stopAcceleration();
         const ownChanges = observer.takeRecords();
         forgetRemoved(ownChanges);
         // A click can rebuild the player's classes. Do not treat those changes as a new ad.
@@ -141,7 +171,7 @@
     function onMediaLoad(event) {
       if (!event.target.matches?.('video') || event.target.closest('.html5-video-player') !== root) return;
       rejected.delete(event.target);
-      if (acceleration?.video === event.target) acceleration.attempts = 0;
+      if (acceleration?.video === event.target) { acceleration.attempts = 0; acceleration.muteAttempts = 0; }
       check();
     }
     const mediaEvents = ['loadstart', 'loadedmetadata'];
@@ -151,8 +181,7 @@
         if (!pending || pending.token !== token || !useDebugger?.() || destroyed || !root.isConnected ||
             !root.matches('.ad-showing, .ad-interrupting') || pending.button.closest('.html5-video-player') !== root || !available(pending.button)) return false;
         pending.prepared = true;
-        stopAcceleration();
-        onBeforeSkip?.();
+        prepareMediaForSkip();
         return true;
       },
       isAccelerating(video) { return !!acceleration && (!video || acceleration.video === video); },

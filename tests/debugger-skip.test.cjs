@@ -20,15 +20,35 @@ async function setup(t, options = {}) {
   return { page, ...worker };
 }
 
-test('opt-in skip sends trusted Chromium input and restores media before the click', async t => {
+test('opt-in skip restores speed before trusted input and keeps mute until the ad ends', async t => {
   const { page, calls } = await setup(t);
   await page.locator('.html5-video-player').evaluate(root => root.classList.add('ad-showing'));
   await page.waitForFunction(() => window.skipEvents.some(event => event.trusted), null, { timeout: 5000 });
-  assert.deepEqual(await page.evaluate(() => window.skipEvents), [{ trusted: true, rate: 1.5, muted: false }]);
+  assert.deepEqual(await page.evaluate(() => window.skipEvents), [{ trusted: true, rate: 1.5, muted: true }]);
   assert.deepEqual(await videoState(page), { rate: 1.5, volume: 1, muted: false });
   await page.waitForFunction(() => !document.querySelector('[data-geno-debugger-skip]'));
   assert.equal(calls.filter(call => call.method === 'attach').length, 1);
   assert.equal(calls.filter(call => call.method === 'detach').length, 1);
+});
+
+test('debugger preparation keeps the ad muted while browser input is pending',async t=>{
+  let release;
+  const gate=new Promise(resolve=>{release=resolve;});
+  const {page}=await setup(t,{beforeCommand:async(method,params)=>{
+    if(method==='Input.dispatchMouseEvent'&&params.type==='mouseMoved'){
+      await page.evaluate(()=>window.prepared=true);
+      await gate;
+    }
+  }});
+  t.after(()=>release());
+  await page.locator('.html5-video-player').evaluate(root=>root.classList.add('ad-showing'));
+  await page.waitForFunction(()=>window.prepared);
+  assert.deepEqual(await videoState(page),{rate:1.5,volume:1,muted:true});
+  await page.locator('video').evaluate(video=>{video.muted=false;video.dispatchEvent(new Event('volumechange'));});
+  assert.equal((await videoState(page)).muted,true);
+  release();
+  await page.waitForFunction(()=>window.skipEvents.some(event=>event.trusted));
+  assert.deepEqual(await videoState(page),{rate:1.5,volume:1,muted:false});
 });
 
 test('default mode never attaches a debugger when synthetic clicks are ignored', async t => {

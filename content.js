@@ -43,6 +43,7 @@
       session = null;
       lifecycleEvents.forEach(type => saved.video.removeEventListener(type, onVideoReset));
       saved.video.removeEventListener('ratechange', onRateChange);
+      saved.video.removeEventListener('volumechange', onVolumeChange);
       restore(saved);
     }
     reason = stopReason;
@@ -53,6 +54,20 @@
 
   function onRateChange() {
     if (session && session.video.playbackRate !== 16) stopAcceleration('プレーヤーに速度を戻された！いったん加速をやめるぞ！');
+  }
+
+  function muteSession(saved) {
+    if (saved.video.muted) return;
+    if (saved.muteAttempts >= 3) throw new Error('Mute repeatedly reset');
+    saved.muteAttempts++;
+    saved.video.muted = true;
+    if (!saved.video.muted) throw new Error('Mute rejected');
+  }
+
+  function onVolumeChange() {
+    if (!session) return;
+    try { muteSession(session); }
+    catch { stopAcceleration('プレーヤーにミュートを戻された！加速をやめるぞ！'); }
   }
 
   function layoutArea(video) {
@@ -80,14 +95,14 @@
     if (!supported()) { reason = 'このサイトはまだ登録されてないぞ！設定で追加してくれ！'; publishState(); return false; }
     if (!video?.isConnected) { reason = '動画が見つからないぞ！動画のあるページで頼む！'; publishState(); return false; }
     if (session) stopAcceleration();
-    const saved = { video, rate: video.playbackRate, volume: video.volume, muted: video.muted };
+    const saved = { video, rate: video.playbackRate, volume: video.volume, muted: video.muted, muteAttempts: 0 };
     try {
       video.playbackRate = 16;
       if (video.playbackRate !== 16) throw new Error('Rate rejected');
-      video.muted = true;
+      muteSession(saved);
     } catch {
       restore(saved);
-      reason = 'ここのプレーヤー、16倍速を受け付けないぞ！';
+      reason = 'ここのプレーヤー、16倍速かミュートを受け付けないぞ！';
       publishState();
       return false;
     }
@@ -95,6 +110,7 @@
     reason = '';
     lifecycleEvents.forEach(type => video.addEventListener(type, onVideoReset));
     video.addEventListener('ratechange', onRateChange);
+    video.addEventListener('volumechange', onVolumeChange);
     timer = setTimeout(() => stopAcceleration(), 3000);
     publishState();
     return true;

@@ -112,6 +112,59 @@ test('automatic acceleration remutes an ad even when the speed stays at 16x',asy
   assert.deepEqual(await videoState(page),{rate:1.5,volume:.4,muted:false});
 });
 
+test('an ad volumechange restores mute before the next polling interval',async t=>{
+  const page=await setup(t,{ad:true});
+  const result=await page.locator('video').evaluate(video=>{
+    video.muted=false;
+    video.dispatchEvent(new Event('volumechange'));
+    return {rate:video.playbackRate,muted:video.muted};
+  });
+  assert.deepEqual(result,{rate:16,muted:true});
+  await setAd(page,false);
+  assert.deepEqual(await videoState(page),{rate:1.5,volume:.4,muted:false});
+});
+
+test('a refused skip keeps the ad muted during and after its click handler',async t=>{
+  const page=await setup(t,{ad:true});
+  await page.evaluate(()=>{
+    const button=document.createElement('button');
+    button.className='ytp-skip-ad-button';button.textContent='スキップ';
+    button.onclick=()=>{const v=document.querySelector('video');window.audioAtSkip={rate:v.playbackRate,muted:v.muted};};
+    document.querySelector('.html5-video-player').append(button);
+  });
+  await page.clock.runFor(50);
+  assert.deepEqual(await page.evaluate(()=>window.audioAtSkip),{rate:1.5,muted:true});
+  assert.deepEqual(await videoState(page),{rate:16,volume:.4,muted:true});
+  await setAd(page,false);
+  assert.deepEqual(await videoState(page),{rate:1.5,volume:.4,muted:false});
+});
+
+test('failed skip attempts do not exhaust the rate override budget',async t=>{
+  const page=await setup(t,{ad:true});
+  await page.evaluate(()=>{
+    const button=document.createElement('button');button.className='ytp-skip-ad-button';button.textContent='スキップ';
+    window.failedSkips=0;button.onclick=()=>{window.failedSkips++;};
+    document.querySelector('.html5-video-player').append(button);
+  });
+  await page.clock.runFor(7000);
+  assert.ok(await page.evaluate(()=>window.failedSkips>3));
+  assert.deepEqual(await videoState(page),{rate:16,volume:.4,muted:true});
+  await setAd(page,false);
+  assert.deepEqual(await videoState(page),{rate:1.5,volume:.4,muted:false});
+});
+
+test('repeated mute resets stop acceleration instead of causing a volumechange loop',async t=>{
+  const page=await setup(t,{ad:true});
+  await page.locator('video').evaluate(video=>{
+    for(let i=0;i<4;i++){video.muted=false;video.dispatchEvent(new Event('volumechange'));}
+  });
+  await page.clock.runFor(1500);
+  assert.deepEqual(await videoState(page),{rate:1.5,volume:.4,muted:false});
+  assert.equal((await state(page)).isActive,false);
+  await setAd(page,false);await setAd(page,true);
+  assert.deepEqual(await videoState(page),{rate:16,volume:.4,muted:true});
+});
+
 test('automatic ad acceleration on another player does not cancel the manual session',async t=>{
   const page=await setup(t);
   await page.locator('video').evaluate(video=>{video.id='main';});
