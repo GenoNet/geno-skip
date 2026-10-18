@@ -206,15 +206,40 @@ test('retries an early skip click after the site attaches its handler',async t=>
   assert.equal(await clicks(page),2);
 });
 
-test('limits retries when a native skip control does not respond',async t=>{
+test('paces continued retries when a native skip control does not respond',async t=>{
   const page=await setup(t);
   await page.clock.install();
   await loadContent(page);
   await page.clock.runFor(10000);
-  assert.equal(await clicks(page),3);
-  await page.evaluate(()=>document.querySelector('#ad-controls').append(document.createElement('span')));
-  await page.clock.runFor(1000);
-  assert.equal(await clicks(page),3);
+  const attempts=await clicks(page);
+  assert.ok(attempts>=6 && attempts<=8,`unexpected attempts: ${attempts}`);
+  await page.evaluate(()=>{for(let i=0;i<100;i++)document.querySelector('#ad-controls').append(document.createElement('span'));});
+  await page.clock.runFor(100);
+  assert.equal(await clicks(page),attempts);
+  await page.locator('.html5-video-player').evaluate(root=>root.classList.remove('ad-showing'));
+  await page.clock.runFor(5000);
+  assert.equal(await clicks(page),attempts);
+});
+
+test('retries skip after its handler becomes ready several seconds after the button appears',async t=>{
+  const button='<button class="ytp-skip-ad-button" id="skip-button:2" style=""><div class="ytp-skip-ad-button__text">スキップ</div><span class="ytp-skip-ad-button__icon"><svg fill="none" height="24" viewBox="0 0 24 24" width="24"><path d="M20 20V4M5 20L18 12L5 4Z" fill="white"></path></svg></span></button>';
+  const page=await setup(t,{html:fixture({button})});
+  await page.clock.install();
+  await page.locator('.ytp-skip-ad-button').evaluate(button=>{
+    button.addEventListener('click',()=>{if(window.skipReady){window.adSkipped=true;button.closest('.html5-video-player').classList.remove('ad-showing');}});
+  });
+  await loadContent(page);
+  await page.clock.runFor(6000);
+  assert.equal(await page.evaluate(()=>window.adSkipped),undefined);
+  await page.evaluate(()=>{window.skipReady=true;});
+  await page.clock.runFor(2500);
+  assert.equal(await page.evaluate(()=>window.adSkipped),true);
+});
+
+test('clicks a visibly available native skip control inside an aria-hidden group',async t=>{
+  const page=await setup(t,{html:fixture({button:'<div aria-hidden="true"><button class="ytp-skip-ad-button">SKIP</button></div>'})});
+  await loadContent(page);
+  assert.equal(await clicks(page),1);
 });
 
 test('detects a skip control revealed by a stylesheet change without DOM mutations',async t=>{

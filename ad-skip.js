@@ -2,11 +2,13 @@
   'use strict';
   const selector = '.ytp-ad-skip-button-modern, .ytp-ad-skip-button, .ytp-skip-ad-button, .ytp-ad-skip-button-v2';
   const retryDelay = 500;
-  const maxAttempts = 3;
+  const slowRetryDelay = 2000;
+  const fastAttempts = 3;
+  const maxRateAttempts = 3;
 
   function available(button) {
     if (typeof button.click !== 'function' || button.matches(':disabled') ||
-        button.closest('[aria-disabled="true"], [hidden], [inert], [aria-hidden="true"]')) return false;
+        button.closest('[aria-disabled="true"], [hidden], [inert]')) return false;
     if (button.checkVisibility && !button.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return false;
     const rect = button.getBoundingClientRect();
     const style = getComputedStyle(button);
@@ -37,7 +39,7 @@
       }
       try {
         if (video.playbackRate !== 16) {
-          if (acceleration.attempts >= maxAttempts) throw new Error('Rate repeatedly reset');
+          if (acceleration.attempts >= maxRateAttempts) throw new Error('Rate repeatedly reset');
           acceleration.attempts++;
           video.playbackRate = 16;
           if (video.playbackRate !== 16) throw new Error('Rate rejected');
@@ -84,7 +86,8 @@
         if (button.closest('.html5-video-player') !== root) continue;
         if (!available(button)) { clicked.delete(button); continue; }
         const previous = clicked.get(button), now = performance.now();
-        if (previous && (previous.attempts >= maxAttempts || now - previous.time < retryDelay)) continue;
+        const delay = previous?.attempts >= fastAttempts ? slowRetryDelay : retryDelay;
+        if (previous && now - previous.time < delay) continue;
         clicked.set(button, { attempts: (previous?.attempts || 0) + 1, time: now });
         // Use the site's exposed skip control; never enable a countdown or seek past an ad.
         stopAcceleration();

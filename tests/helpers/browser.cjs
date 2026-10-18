@@ -7,7 +7,7 @@ async function openPage(t, { html = '<video style="width:640px;height:360px"></v
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE_PATH || '/usr/bin/chromium', headless: true });
   t.after(() => browser.close());
   const page = await browser.newPage();
-  await page.route('https://assets.test/**', route => route.fulfill({ contentType: 'image/png', body: fs.readFileSync(path.join(root, 'assets/geno-faces.png')) }));
+  await page.route('https://assets.test/**', route => route.fulfill({ contentType: 'image/png', headers: { 'Access-Control-Allow-Origin': '*' }, body: fs.readFileSync(path.join(root, 'assets/geno-faces.png')) }));
   await page.route(`https://${hostname}/**`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><html><body>${html}</body></html>` }));
   await page.goto(`https://${hostname}/watch`);
   await page.evaluate(storage => {

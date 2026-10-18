@@ -2,6 +2,24 @@
   'use strict';
   const mounted = new WeakMap();
   let tooltipId = 0;
+  let faceSource = null;
+
+  function loadFaceSource() {
+    if (!faceSource) faceSource = Promise.resolve()
+      .then(() => fetch(chrome.runtime.getURL('assets/geno-faces.png')))
+      .then(response => {
+        if (!response.ok) throw new Error(`Face image: HTTP ${response.status}`);
+        return response.blob();
+      })
+      .then(blob => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error || new Error('Face image could not be read'));
+        reader.readAsDataURL(blob);
+      }))
+      .catch(error => { faceSource = null; throw error; });
+    return faceSource;
+  }
 
   function createTooltip(button, host, native) {
     const tooltip = document.createElement('div');
@@ -142,8 +160,6 @@
     const face = document.createElement('span');
     face.className = 'geno-skip-face';
     face.setAttribute('aria-hidden', 'true');
-    // Paint on HTML: SVG applies same-origin restrictions to extension image URLs.
-    face.style.backgroundImage = `url("${chrome.runtime.getURL('assets/geno-faces.png')}")`;
     const marker = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     marker.setAttribute('class', 'geno-skip-native-marker');
     marker.setAttribute('viewBox', '0 0 36 36');
@@ -174,6 +190,10 @@
       anchor.after(dock);
     }
     const tooltip = createTooltip(button, controls ? root : dock, !!controls);
+    // The renderer only sees embedded PNG data, never a cross-origin extension URL.
+    loadFaceSource().then(source => {
+      if (face.isConnected) face.style.backgroundImage = `url("${source}")`;
+    }).catch(error => console.warn('じーのの顔が読めなかったぞ！', error.message));
     let shortcut = accelerationKey, isActive = false;
     function updateLabel() {
       button.setAttribute('aria-label', isActive ? 'じーのスキップ：加速を解除' : 'じーのスキップ：3秒間16倍速');

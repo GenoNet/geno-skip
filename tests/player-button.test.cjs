@@ -13,6 +13,7 @@ test('Geno precedes every other button in the controls group',async t=>{
 test('face resources are painted on HTML outside SVG resource loading',async t=>{
   const page=await openPage(t,{html:youtube});
   await loadContent(page);
+  await page.waitForFunction(()=>getComputedStyle(document.querySelector('.geno-skip-face')).backgroundImage.startsWith('url("data:image/png;base64,'),null,{timeout:1500});
   const painting=await page.locator('.geno-skip-button').evaluate(button=>{
     const face=button.querySelector('.geno-skip-face');
     return {html:face.namespaceURI==='http://www.w3.org/1999/xhtml',outsideSvg:face.closest('svg')===null,
@@ -20,7 +21,7 @@ test('face resources are painted on HTML outside SVG resource loading',async t=>
   });
   assert.equal(painting.html,true);
   assert.equal(painting.outsideSvg,true);
-  assert.match(painting.source,/assets\/geno-faces\.png/);
+  assert.match(painting.source,/^url\("data:image\/png;base64,/);
   assert.equal(painting.svgUsesImage,false);
   const size=await page.locator('.geno-skip-face').evaluate(async face=>{
     const image=new Image();image.src=getComputedStyle(face).backgroundImage.slice(5,-2);await image.decode();
