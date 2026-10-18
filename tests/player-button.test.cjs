@@ -3,6 +3,29 @@ const assert = require('node:assert/strict');
 const { openPage, loadContent, state, videoState } = require('./helpers/browser.cjs');
 const youtube = '<div class="html5-video-player"><video style="width:640px;height:360px"></video><div class="ytp-chrome-controls"><div class="ytp-right-controls"><button id="other">Other extension</button><button class="ytp-settings-button">Settings</button></div></div></div>';
 
+test('Geno precedes every other button in the controls group',async t=>{
+  const page=await openPage(t,{html:youtube});
+  await loadContent(page);
+  assert.equal(await page.locator('.ytp-right-controls > :first-child').getAttribute('class'),'geno-skip-button ytp-button');
+  assert.equal(await page.locator('#other').count(),1);
+});
+
+test('face remains centered when native player styles change the button display',async t=>{
+  const page=await openPage(t,{html:youtube});
+  await loadContent(page);
+  await page.addStyleTag({content:'.ytp-right-controls .ytp-button { display:inline-block; text-align:left; }'});
+  await page.emulateMedia({reducedMotion:'reduce'});
+  const button=page.locator('.geno-skip-button');
+  for(const active of [false,true]) {
+    if(active) await button.click();
+    const offset=await button.evaluate(button=>{
+      const b=button.getBoundingClientRect(),f=button.querySelector('.geno-skip-face').getBoundingClientRect();
+      return {x:Math.abs((b.left+b.right-f.left-f.right)/2),y:Math.abs((b.top+b.bottom-f.top-f.bottom)/2)};
+    });
+    assert.ok(offset.x<0.5 && offset.y<0.5,JSON.stringify(offset));
+  }
+});
+
 test('YouTube button changes face and spins throughout acceleration, restores on click', async t => {
   const page = await openPage(t,{html:youtube});
   await loadContent(page);

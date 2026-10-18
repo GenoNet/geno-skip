@@ -12,6 +12,7 @@
   const observedVideos = new Set();
   let refreshFrame = null;
   const buttons = new Map();
+  const adSkippers = new Map();
   const lifecycleEvents = ['ended', 'emptied', 'loadstart'];
   const playerSelector = 'video, .html5-video-player, .ytp-right-controls, .ytp-chrome-controls';
   const supported = () => ready && settingsApi.matches(location.hostname, settings.videoUrls);
@@ -140,6 +141,22 @@
       buttons.set(video, button);
       button.setActive(session?.video === video);
     }
+    configureAdSkipping();
+  }
+
+  function configureAdSkipping() {
+    if (!globalThis.GenoAdSkip) return;
+    const roots = new Set(settingsApi.matches(location.hostname, ['youtube.com', 'youtube-nocookie.com']) ?
+      document.querySelectorAll('.html5-video-player') : []);
+    for (const [root, skipper] of adSkippers) {
+      if (!roots.has(root)) { skipper.destroy(); adSkippers.delete(root); }
+    }
+    for (const root of roots) {
+      if (!adSkippers.has(root)) adSkippers.set(root, globalThis.GenoAdSkip.watch(root, {
+        onBeforeSkip: () => { if (session && root.contains(session.video)) stopAcceleration(); }
+      }));
+      adSkippers.get(root).check();
+    }
   }
 
   function scheduleRefresh() {
@@ -162,6 +179,8 @@
       stopAcceleration();
       for (const button of buttons.values()) button.destroy();
       buttons.clear();
+      for (const skipper of adSkippers.values()) skipper.destroy();
+      adSkippers.clear();
       return;
     }
     if (!observer) {
@@ -188,6 +207,7 @@
     if (event.key.toUpperCase() === settings.accelerationKey) { event.preventDefault(); toggleAcceleration(); }
   });
   document.addEventListener('click', event => {
+    if (!event.isTrusted) return;
     if (session && !event.composedPath().some(node => node instanceof Element && node.classList.contains('geno-skip-button'))) stopAcceleration();
   });
   document.addEventListener('yt-navigate-finish', () => { if (session) stopAcceleration(); scheduleRefresh(); });

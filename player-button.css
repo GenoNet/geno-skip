@@ -24,7 +24,12 @@ button.geno-skip-button {
 }
 button.geno-skip-button:hover { background: rgb(255 255 255 / 14%); }
 button.geno-skip-button:focus-visible { outline: 2px solid #ffe59d; outline-offset: -2px; }
-.geno-skip-face {
+.geno-skip-button .geno-skip-face {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  margin-left: -16px;
+  margin-top: -16px;
   display: block;
   width: 32px;
   height: 32px;
@@ -54,7 +59,7 @@ button.geno-skip-button:focus-visible { outline: 2px solid #ffe59d; outline-offs
 .geno-skip-button[aria-pressed="true"] .geno-skip-badge { display: block; }
 .geno-skip-dock {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   align-items: center;
   box-sizing: border-box;
   width: 100%;

@@ -38,7 +38,7 @@ async function openPage(t, { html = '<video style="width:640px;height:360px"></v
 }
 
 async function loadContent(page) {
-  for (const file of ['settings.js', 'player-button.js', 'content.js']) {
+  for (const file of ['settings.js', 'player-button.js', 'ad-skip.js', 'content.js']) {
     if (fs.existsSync(path.join(root, file))) await page.addScriptTag({ path: path.join(root, file) });
   }
   if (fs.existsSync(path.join(root, 'player-button.css'))) await page.addStyleTag({ path: path.join(root, 'player-button.css') });

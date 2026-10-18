@@ -57,7 +57,7 @@
 
     let dock = null;
     if (controls) {
-      controls.insertBefore(button, controls.querySelector(':scope > .ytp-settings-button'));
+      controls.prepend(button);
     } else {
       dock = document.createElement('div');
       dock.className = 'geno-skip-dock';

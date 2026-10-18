@@ -1,13 +1,13 @@
 {
   "manifest_version": 3,
   "name": "じーのスキップ",
-  "version": "666.667",
-  "description": "顔ボタンやキーで動画を3秒間16倍速に。元の再生速度・音量へ戻します。",
+  "version": "666.666",
+  "description": "地獄に落ちろ！！！",
   "permissions": ["activeTab", "storage"],
   "content_scripts": [
     {
       "matches": ["*://*/*"],
-      "js": ["settings.js", "player-button.js", "content.js"],
+      "js": ["settings.js", "player-button.js", "ad-skip.js", "content.js"],
       "css": ["player-button.css"]
     }
   ],
