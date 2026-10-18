@@ -27,7 +27,7 @@ YouTubeやニコニコ動画などの動画・広告を16倍速で再生するCh
 ### 基本操作
 
 - 対応サイトで動画を開く
-- プレーヤー下部のgenoちゃんの顔をクリックすると16倍速に加速
+- プレーヤー下部のじーのちゃんボタンをクリックすると16倍速に加速
 - 加速中は怒り顔になって回転
 - もう一度クリックするか、3秒たつと解除
 - SキーやポップアップのGo!/Stop!ボタンでも操作可能
@@ -54,21 +54,5 @@ YouTubeやニコニコ動画などの動画・広告を16倍速で再生するCh
 - 動画だけを全画面にすると顔ボタンが隠れる場合あり。その場合はキーで操作
 - 倍率は16倍速固定
 - 広告通信の遮断は行いません。広告ブロッカー判定を受けない保証はありません
-- 実サイトでの動作・広告判定は未検証。確認範囲は[レビュー記録](docs/superpowers/plans/2026-10-18-geno-player-button-review.md)を参照
-
-## 開発
-
-テストにはNode.js 24以上とChromiumが必要です。拡張機能を使うだけならビルドは不要です。
-
-```bash
-npm ci
-npm test
-npm run check
-```
 
 Chromiumの場所を変える場合は `CHROMIUM_EXECUTABLE_PATH=/path/to/chromium npm test` で指定できます。
-
-## 参考
-
-- [youtube-ambilight](https://github.com/WesselKroos/youtube-ambilight)：プレーヤーへのボタン追加を参考にしています
-- 顔画像は提供写真を元に画像生成ツールで加工しています
