@@ -1,0 +1,11 @@
+{
+  "name": "geno-skip",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node --test --test-concurrency=1 tests/*.test.cjs",
+    "check": "node --check settings.js && node --check content.js && node --check player-button.js && node --check popup.js"
+  },
+  "devDependencies": { "playwright-core": "1.57.0" },
+  "engines": { "node": ">=24" }
+}
