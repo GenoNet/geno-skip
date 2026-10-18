@@ -5,18 +5,14 @@
   let faceSource = null;
 
   function loadFaceSource() {
-    if (!faceSource) faceSource = Promise.resolve()
-      .then(() => fetch(chrome.runtime.getURL('assets/geno-faces.png')))
-      .then(response => {
-        if (!response.ok) throw new Error(`Face image: HTTP ${response.status}`);
-        return response.blob();
-      })
-      .then(blob => new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(reader.error || new Error('Face image could not be read'));
-        reader.readAsDataURL(blob);
-      }))
+    if (!faceSource) faceSource = new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage({ type: 'GENO_FACE_SOURCE' }, response => {
+        const error = chrome.runtime.lastError;
+        if (error) reject(new Error(error.message));
+        else if (!response?.source?.startsWith('data:image/png;base64,')) reject(new Error('Face image could not be loaded'));
+        else resolve(response.source);
+      });
+    })
       .catch(error => { faceSource = null; throw error; });
     return faceSource;
   }

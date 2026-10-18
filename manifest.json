@@ -12,9 +12,6 @@
       "css": ["player-button.css"]
     }
   ],
-  "web_accessible_resources": [
-    { "resources": ["assets/geno-faces.png"], "matches": ["http://*/*", "https://*/*"] }
-  ],
   "options_ui": { "page": "popup.html", "open_in_tab": true },
   "action": {
     "default_popup": "popup.html",

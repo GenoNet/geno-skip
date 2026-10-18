@@ -4,6 +4,7 @@ importScripts('settings.js');
   'use strict';
   const jobs = new Map();
   let settingsGeneration = 0;
+  let faceSource = null;
   const settingsApi = globalThis.GenoSkipSettings;
   const connectionError = 'SKIPのデバッグ接続に失敗！DevToolsを閉じて、設定でもう一度ONにしてくれ！';
 
@@ -15,6 +16,29 @@ importScripts('settings.js');
         else resolve(result);
       });
     });
+  }
+
+  function loadFaceSource() {
+    if (!faceSource) faceSource = Promise.resolve()
+      // Read the packaged asset in the extension origin, never in the site's frame.
+      .then(() => fetch(chrome.runtime.getURL('assets/geno-faces.png')))
+      .then(response => {
+        if (!response.ok) throw new Error('Face image could not be loaded');
+        return response.arrayBuffer();
+      })
+      .then(buffer => {
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i += 32768) binary += String.fromCharCode(...bytes.subarray(i, i + 32768));
+        return `data:image/png;base64,${btoa(binary)}`;
+      })
+      .catch(error => { faceSource = null; throw error; });
+    return faceSource;
+  }
+
+  function validFaceSender(sender) {
+    if (sender.id !== chrome.runtime.id || sender.frameId !== 0 || !Number.isInteger(sender.tab?.id)) return false;
+    try { return ['http:', 'https:'].includes(new URL(sender.url).protocol); } catch { return false; }
   }
 
   // Serialized into the target page. All inputs are data; no page-supplied code is run.
@@ -138,6 +162,11 @@ importScripts('settings.js');
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type === 'GENO_FACE_SOURCE') {
+      if (!validFaceSender(sender)) { sendResponse({ source: null }); return; }
+      loadFaceSource().then(source => sendResponse({ source }), () => sendResponse({ source: null }));
+      return true;
+    }
     if (message?.type !== 'GENO_DEBUGGER_SKIP') return;
     skip(sender, message.token).then(sendResponse, () => sendResponse({ sent: false, reason: connectionError }));
     return true;

@@ -85,6 +85,53 @@ test('unset debugger preference sends trusted input by default',async t=>{
   assert.equal(calls.filter(call=>call.method==='attach').length,1);
 });
 
+test('an already showing preroll can skip after two aborted preparations',async t=>{
+  const page=await openPage(t,{html:html.replace('html5-video-player','html5-video-player ad-showing'),local:{debuggerSkip:true}});
+  await page.clock.install();
+  await page.evaluate(()=>{
+    window.trustedSkips=0;
+    document.querySelector('.ytp-skip-ad-button').addEventListener('click',event=>{
+      if(event.isTrusted){window.trustedSkips++;document.querySelector('.html5-video-player').classList.remove('ad-showing');}
+    });
+  });
+  const {api,calls}=await connectWorker(t,page);
+  const send=api.tabs.sendMessage;
+  let preparations=0;
+  api.tabs.sendMessage=(tab,message,options,callback)=>{
+    if(message.type!=='GENO_PREPARE_DEBUGGER_SKIP'||++preparations>2)return send(tab,message,options,callback);
+    page.locator('.ytp-skip-ad-button').evaluate(button=>button.hidden=true).then(()=>send(tab,message,options,response=>{
+      page.locator('.ytp-skip-ad-button').evaluate(button=>button.hidden=false).then(()=>callback(response));
+    }));
+  };
+  await loadContent(page);
+  for(let i=0;i<2;i++){
+    await page.waitForFunction(count=>window.testMessages.filter(message=>message.type==='GENO_DEBUGGER_SKIP').length>=count,i+1);
+    await page.waitForFunction(()=>!document.querySelector('[data-geno-debugger-skip]'));
+    await page.clock.runFor(2100);
+  }
+  await page.waitForFunction(()=>window.trustedSkips===1,null,{timeout:2000});
+  assert.equal(calls.filter(call=>call.params?.type==='mousePressed').length,1);
+  assert.equal(await page.evaluate(()=>window.testLocalStorage.debuggerSkip),true);
+});
+
+test('repeated preparation failures stop after five requests without sending input',async t=>{
+  const {page,api,calls}=await setup(t);
+  await page.clock.install();
+  api.tabs.sendMessage=(tab,message,options,callback)=>callback({ready:false});
+  await page.locator('.html5-video-player').evaluate(root=>root.classList.add('ad-showing'));
+  for(let i=0;i<5;i++){
+    await page.waitForFunction(count=>window.testMessages.filter(message=>message.type==='GENO_DEBUGGER_SKIP').length>=count,i+1);
+    await page.waitForFunction(()=>!document.querySelector('[data-geno-debugger-skip]'));
+    await page.clock.runFor(2100);
+  }
+  await page.clock.runFor(10000);
+  assert.equal(calls.filter(call=>call.method==='attach').length,5);
+  assert.equal(calls.some(call=>call.params?.type==='mousePressed'),false);
+  assert.equal(await page.evaluate(()=>window.testLocalStorage.debuggerSkip),true);
+  assert.deepEqual(await videoState(page),{rate:16,volume:1,muted:true});
+  assert.match(await page.evaluate(()=>window.requestState().then(value=>value.reason)),/SKIPの準備/);
+});
+
 test('an occupied debugger disables retries and leaves the ad accelerated and muted', async t => {
   const { page, calls } = await setup(t, { attachError: 'Another debugger is already attached to the tab' });
   await page.locator('.html5-video-player').evaluate(root => root.classList.add('ad-showing'));
@@ -139,6 +186,27 @@ test('temporary hiding cannot bypass the two browser-input attempts for one butt
   await page.waitForTimeout(4600);
   assert.equal((await page.evaluate(() => window.skipEvents)).filter(event => event.trusted).length, 2);
   assert.equal(calls.filter(call => call.method === 'attach').length, 2);
+});
+
+test('video replacement during a click cannot bypass the two browser-input attempts',async t=>{
+  let page;
+  const worker=await setup(t,{afterCommand:async(method,params)=>{
+    if(method==='Input.dispatchMouseEvent'&&params.type==='mouseReleased')await page.waitForFunction(()=>!document.querySelector('[data-geno-debugger-skip]'));
+  }});
+  page=worker.page;
+  await page.evaluate(()=>{
+    window.ignoreTrusted=true;
+    document.querySelector('.ytp-skip-ad-button').addEventListener('click',event=>{
+      if(!event.isTrusted)return;
+      const video=document.querySelector('video');
+      video.replaceWith(video.cloneNode());
+    });
+    document.querySelector('.html5-video-player').classList.add('ad-showing');
+  });
+  await page.waitForFunction(()=>window.skipEvents.some(event=>event.trusted));
+  await page.waitForTimeout(4600);
+  assert.equal((await page.evaluate(()=>window.skipEvents)).filter(event=>event.trusted).length,2);
+  assert.equal(worker.calls.filter(call=>call.params?.type==='mousePressed').length,2);
 });
 
 test('the target is checked again after hover changes its position', async t => {

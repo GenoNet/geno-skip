@@ -8,8 +8,8 @@ const { root } = require('./browser.cjs');
 // Adapt only its transport; Runtime/Input commands go to a real Chromium CDP session.
 async function connectWorker(t, page, { attachError, beforeAttach, beforeLocalRead, beforeCommand, afterCommand } = {}) {
   let listener, session;
-  const detached = [], events = [], storageListeners = [], calls = [];
-  const api = { runtime: { id: 'geno-test', onMessage: { addListener: fn => { listener = fn; } } } };
+  const detached = [], events = [], storageListeners = [], calls = [], assetLoads = [];
+  const api = { runtime: { id: 'geno-test', getURL: file => `chrome-extension://geno-test/${file}`, onMessage: { addListener: fn => { listener = fn; } } } };
   function run(callback, task) {
     Promise.resolve().then(task).then(result => callback?.(result), error => {
       api.runtime.lastError = { message: error.message };
@@ -69,7 +69,13 @@ async function connectWorker(t, page, { attachError, beforeAttach, beforeLocalRe
       return response;
     }, message))
   };
-  const context = vm.createContext({ URL, console, setTimeout, clearTimeout, chrome: api });
+  const context = vm.createContext({ URL, console, setTimeout, clearTimeout, chrome: api, btoa,
+    fetch: async url => {
+      assert.equal(url, 'chrome-extension://geno-test/assets/geno-faces.png');
+      assetLoads.push(url);
+      return new Response(fs.readFileSync(path.join(root, 'assets/geno-faces.png')), { headers: { 'Content-Type': 'image/png' } });
+    }
+  });
   context.importScripts = (...files) => files.forEach(file => vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context));
   const worker = path.join(root, 'background.js');
   if (fs.existsSync(worker)) vm.runInContext(fs.readFileSync(worker, 'utf8'), context);
@@ -84,7 +90,7 @@ async function connectWorker(t, page, { attachError, beforeAttach, beforeLocalRe
     chrome.runtime.id = 'geno-test';
     const sendMessage = chrome.runtime.sendMessage;
     chrome.runtime.sendMessage = (message, cb) => {
-      if (message.type !== 'GENO_DEBUGGER_SKIP') return sendMessage(message, cb);
+      if (!['GENO_DEBUGGER_SKIP', 'GENO_FACE_SOURCE'].includes(message.type)) return sendMessage(message, cb);
       window.testMessages.push(message);
       return window.genoWorkerMessage(message).then(response => cb?.(response));
     };
@@ -95,7 +101,7 @@ async function connectWorker(t, page, { attachError, beforeAttach, beforeLocalRe
     session = null;
     detached.forEach(fn => fn({ tabId: 7 }, reason));
   }
-  return { calls, request, api, disconnect };
+  return { calls, request, api, disconnect, assetLoads };
 }
 
 module.exports = { connectWorker };

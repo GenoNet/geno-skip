@@ -5,6 +5,7 @@
   const slowRetryDelay = 2000;
   const fastAttempts = 3;
   const maxRateAttempts = 3;
+  const maxDebugPreparations = 5;
 
   function available(button, hitTest = false) {
     if (typeof button.click !== 'function' || button.matches(':disabled') ||
@@ -30,12 +31,18 @@
       pending = null;
       onStateChange?.();
     }
-    function requestDebugSkip(button) {
+    function requestDebugSkip(button, record) {
       const request = { button, token: crypto.randomUUID(), prepared: false };
+      // Reserve input before the page can replace a video and cancel pending state.
+      record.inputs++;
       pending = request;
       button.setAttribute('data-geno-debugger-skip', request.token);
       onStateChange?.();
       function finish(response) {
+        if (request.finished) return;
+        request.finished = true;
+        // Only an explicit no-input response can spare a click from the limit.
+        if (response?.sent === false) record.inputs--;
         if (pending !== request) return;
         cancelPending();
         if (response?.reason) onSkipError?.(response.reason);
@@ -147,12 +154,19 @@
         const previous = clicked.get(button), now = performance.now();
         const delay = debug || previous?.attempts >= fastAttempts ? slowRetryDelay : retryDelay;
         if (previous && now - previous.time < delay) continue;
-        if (debug && previous?.attempts >= 2) {
-          if (!previous.warned) { previous.warned = true; onSkipError?.('SKIPを2回押したが広告が残ってる！この広告は手で押してくれ！'); }
+        if (debug && (previous?.inputs >= 2 || previous?.attempts >= maxDebugPreparations)) {
+          if (!previous.warned) {
+            previous.warned = true;
+            onSkipError?.(previous.inputs >= 2 ? 'SKIPを2回押したが広告が残ってる！この広告は手で押してくれ！' : 'SKIPの準備が間に合わない！この広告は手で押してくれ！');
+          }
           continue;
         }
-        clicked.set(button, { attempts: (previous?.attempts || 0) + 1, time: now });
-        if (debug) { requestDebugSkip(button); break; }
+        // Late replies must update the same record even after a pending request was canceled.
+        const record = previous || { attempts: 0, inputs: 0 };
+        record.attempts++;
+        record.time = now;
+        clicked.set(button, record);
+        if (debug) { requestDebugSkip(button, record); break; }
         // Use the site's exposed skip control; never enable a countdown or seek past an ad.
         prepareMediaForSkip();
         button.click();

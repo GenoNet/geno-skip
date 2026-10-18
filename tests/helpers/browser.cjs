@@ -2,6 +2,7 @@ const { chromium } = require('playwright-core');
 const path = require('node:path');
 const fs = require('node:fs');
 const root = path.resolve(__dirname, '../..');
+const faceSource = `data:image/png;base64,${fs.readFileSync(path.join(root, 'assets/geno-faces.png')).toString('base64')}`;
 
 async function openPage(t, { html = '<video style="width:640px;height:360px"></video>', hostname = 'www.youtube.com', storage = {}, local = { debuggerSkip: false } } = {}) {
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE_PATH || '/usr/bin/chromium', headless: true });
@@ -10,6 +11,7 @@ async function openPage(t, { html = '<video style="width:640px;height:360px"></v
   await page.route('https://assets.test/**', route => route.fulfill({ contentType: 'image/png', headers: { 'Access-Control-Allow-Origin': '*' }, body: fs.readFileSync(path.join(root, 'assets/geno-faces.png')) }));
   await page.route(`https://${hostname}/**`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><html><body>${html}</body></html>` }));
   await page.goto(`https://${hostname}/watch`);
+  await page.exposeFunction('genoTestFaceSource', () => faceSource);
   await page.evaluate(({ storage, local }) => {
     window.testMessages = [];
     window.testStorage = storage;
@@ -19,7 +21,11 @@ async function openPage(t, { html = '<video style="width:640px;height:360px"></v
     window.chrome = {
       runtime: {
         getURL: file => `https://assets.test/${file}`,
-        sendMessage: (message, callback) => { window.testMessages.push(message); callback?.(); },
+        sendMessage: (message, callback) => {
+          window.testMessages.push(message);
+          if (message.type === 'GENO_FACE_SOURCE') return window.genoTestFaceSource().then(source => callback?.({ source }));
+          callback?.();
+        },
         onMessage: { addListener: callback => window.testMessageListeners.push(callback) }
       },
       storage: {
