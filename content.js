@@ -35,6 +35,7 @@
       const saved = session;
       session = null;
       lifecycleEvents.forEach(type => saved.video.removeEventListener(type, onVideoReset));
+      saved.video.removeEventListener('ratechange', onRateChange);
       restore(saved);
     }
     reason = stopReason;
@@ -43,10 +44,21 @@
 
   function onVideoReset() { stopAcceleration(); }
 
-  function visibleArea(video) {
+  function onRateChange() {
+    if (session && session.video.playbackRate !== 16) stopAcceleration('プレーヤー側が速度を変更したため、加速を解除しました。');
+  }
+
+  function layoutArea(video) {
     const rect = video.getBoundingClientRect();
     const style = getComputedStyle(video);
-    if (style.visibility === 'hidden' || style.display === 'none' || !video.checkVisibility()) return 0;
+    if (style.visibility === 'hidden' || style.display === 'none' ||
+        (video.checkVisibility && !video.checkVisibility())) return 0;
+    return rect.width * rect.height;
+  }
+
+  function visibleArea(video) {
+    const rect = video.getBoundingClientRect();
+    if (layoutArea(video) <= 0) return 0;
     return Math.max(0, Math.min(rect.right, innerWidth) - Math.max(rect.left, 0)) *
       Math.max(0, Math.min(rect.bottom, innerHeight) - Math.max(rect.top, 0));
   }
@@ -75,6 +87,7 @@
     session = saved;
     reason = '';
     lifecycleEvents.forEach(type => video.addEventListener(type, onVideoReset));
+    video.addEventListener('ratechange', onRateChange);
     timer = setTimeout(() => stopAcceleration(), 3000);
     publishState();
     return true;
@@ -89,14 +102,25 @@
     refreshFrame = null;
     if (!supported()) return;
     if (session && !session.video.isConnected) stopAcceleration();
-    for (const [video, button] of buttons) {
-      if (!video.isConnected) { button.destroy(); buttons.delete(video); }
-    }
     if (!globalThis.GenoPlayerButtons) return;
+    const players = new Map();
     for (const video of document.querySelectorAll('video')) {
-      if (visibleArea(video) <= 0) continue;
+      const area = layoutArea(video);
+      if (area <= 0) continue;
       const root = video.closest('.html5-video-player') || video.parentElement;
       if (!root) continue;
+      const key = video.closest('.html5-video-player') || video;
+      const previous = players.get(key);
+      if (!previous || area > previous.area) players.set(key, { root, video, area });
+    }
+    const selected = new Set([...players.values()].map(player => player.video));
+    for (const [video, button] of buttons) {
+      if (!selected.has(video)) {
+        if (session?.video === video) stopAcceleration();
+        button.destroy(); buttons.delete(video);
+      }
+    }
+    for (const { root, video } of players.values()) {
       const button = globalThis.GenoPlayerButtons.mount({ root, video, onToggle: () => toggleAcceleration(video) });
       buttons.set(video, button);
       button.setActive(session?.video === video);
