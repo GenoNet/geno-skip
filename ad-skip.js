@@ -181,7 +181,8 @@
         if (debug && (previous?.inputs >= 2 || previous?.attempts >= maxDebugPreparations)) {
           if (!previous.warned) {
             previous.warned = true;
-            onSkipError?.(previous.inputs >= 2 ? 'SKIPを2回押したが広告が残ってる！この広告は手で押してくれ！' : 'SKIPの準備が間に合わない！この広告は手で押してくれ！');
+            const detail = statusText[previous.status] || '入力前に中断した';
+            onSkipError?.(previous.inputs >= 2 ? 'SKIPを2回押したが広告が残ってる！この広告は手で押してくれ！' : `SKIPの準備で止まった！（${detail}）この広告は手で押してくれ！`);
           }
           continue;
         }

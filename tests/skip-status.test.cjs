@@ -46,13 +46,43 @@ test('worker reports an aborted preparation without claiming input was sent', as
   assert.equal(calls.some(call => call.params?.type === 'mousePressed'), false);
 });
 
+test('preparation failure keeps its concrete reason after the ad ends', async t => {
+  const page = await openPage(t, { html: html.replace('</div></div>', '</div><button class="ytp-skip-ad-button">SKIP</button></div>'), local: { debuggerSkip: true } });
+  await page.clock.install();
+  const { api, calls } = await connectWorker(t, page);
+  api.tabs.sendMessage = (tab, message, options, callback) => callback({ ready: false });
+  await loadContent(page);
+  for (let i = 0; i < 5; i++) {
+    await page.waitForFunction(count => window.testMessages.filter(message => message.type === 'GENO_DEBUGGER_SKIP').length >= count, i + 1);
+    await page.waitForFunction(() => !document.querySelector('[data-geno-debugger-skip]'));
+    await page.clock.runFor(2100);
+  }
+  assert.match((await state(page)).reason || '', /入力の準備をやり直し中/);
+  await page.locator('.html5-video-player').evaluate(root => root.classList.remove('ad-showing'));
+  const result = await state(page);
+  assert.equal(result.isActive, false);
+  assert.match(result.reason || '', /入力の準備をやり直し中/);
+  assert.equal(calls.some(call => call.params?.type === 'mousePressed'), false);
+});
+
 test('worker identifies a changed page while refusing to send input', async t => {
   const page = await openPage(t, { html, local: { debuggerSkip: true } });
   const { request, calls } = await connectWorker(t, page);
   const sender = { id: 'geno-test', url: page.url(), frameId: 0, documentId: 'test-document', tab: { id: 7 } };
   await page.evaluate(() => history.pushState({}, '', '/watch?v=changed'));
-  const result = await request({ type: 'GENO_DEBUGGER_SKIP', token: 'test-request' }, sender);
+  const result = await request({ type: 'GENO_DEBUGGER_SKIP', token: 'test-request', url: sender.url }, sender);
   assert.equal(result.sent, false);
   assert.equal(result.status, 'page-changed');
   assert.equal(calls.some(call => call.method === 'Input.dispatchMouseEvent'), false);
+});
+
+test('claimed current URL must share the authenticated sender origin', async t => {
+  const page = await openPage(t, { local: { debuggerSkip: true } });
+  const { request, calls } = await connectWorker(t, page);
+  for (const url of ['https://www.youtube-nocookie.com/watch', 'https://youtube.com.evil.test/watch', 'http://www.youtube.com/watch', 'file:///tmp/video.html', null, {}]) {
+    const result = await request({ type: 'GENO_DEBUGGER_SKIP', token: 'test-request', url });
+    assert.equal(result.sent, false);
+    assert.equal(result.status, 'invalid-page');
+  }
+  assert.equal(calls.length, 0);
 });

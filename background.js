@@ -73,8 +73,16 @@ importScripts('settings.js');
     await call(chrome.debugger, 'detach', job.target).catch(() => {});
   }
 
-  async function skip(sender, token) {
+  async function skip(sender, token, currentURL) {
     if (!validSender(sender) || typeof token !== 'string' || !/^[\w-]{1,80}$/.test(token)) return { sent: false, status: 'invalid-page' };
+    let expectedURL;
+    try {
+      if (currentURL !== undefined && typeof currentURL !== 'string') throw new Error('Invalid URL');
+      // MessageSender.url is the script's initial URL, even after pushState.
+      const url = new URL(currentURL === undefined ? sender.url : currentURL);
+      if (url.origin !== new URL(sender.url).origin) throw new Error('Origin changed');
+      expectedURL = url.href;
+    } catch { return { sent: false, status: 'invalid-page' }; }
     const generation = settingsGeneration;
     const [local, sync] = await Promise.all([
       call(chrome.storage.local, 'get', ['debuggerSkip']),
@@ -104,7 +112,7 @@ importScripts('settings.js');
     }
     async function target() {
       const result = await command('Runtime.evaluate', {
-        expression: `(${locateSkip.toString()})(${JSON.stringify(token)}, ${JSON.stringify(sender.url)})`,
+        expression: `(${locateSkip.toString()})(${JSON.stringify(token)}, ${JSON.stringify(expectedURL)})`,
         returnByValue: true,
         timeout: 500
       });
@@ -173,7 +181,7 @@ importScripts('settings.js');
       return true;
     }
     if (message?.type !== 'GENO_DEBUGGER_SKIP') return;
-    skip(sender, message.token).then(sendResponse, () => sendResponse({ sent: false, status: 'input-error', reason: connectionError }));
+    skip(sender, message.token, message.url).then(sendResponse, () => sendResponse({ sent: false, status: 'input-error', reason: connectionError }));
     return true;
   });
   chrome.debugger.onDetach.addListener((source, reason) => {

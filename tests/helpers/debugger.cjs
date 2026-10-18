@@ -79,7 +79,9 @@ async function connectWorker(t, page, { attachError, beforeAttach, beforeLocalRe
   context.importScripts = (...files) => files.forEach(file => vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context));
   const worker = path.join(root, 'background.js');
   if (fs.existsSync(worker)) vm.runInContext(fs.readFileSync(worker, 'utf8'), context);
-  const sender = () => ({ id: 'geno-test', frameId: 0, documentId: 'test-document', url: page.url(), tab: { id: 7 } });
+  // Chrome's ScriptContext URL stays at the initial URL after history.pushState.
+  const sourceURL = page.url();
+  const sender = () => ({ id: 'geno-test', frameId: 0, documentId: 'test-document', url: sourceURL, tab: { id: 7 } });
   const request = (message, source = sender()) => new Promise(resolve => {
     assert.equal(typeof listener, 'function', 'background registers its skip message handler');
     const keepAlive = listener(message, source, resolve);

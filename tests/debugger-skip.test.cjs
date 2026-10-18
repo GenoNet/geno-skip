@@ -85,6 +85,18 @@ test('unset debugger preference sends trusted input by default',async t=>{
   assert.equal(calls.filter(call=>call.method==='attach').length,1);
 });
 
+test('YouTube same-document navigation skips with Chrome sender URL still at the initial page',async t=>{
+  const {page,calls}=await setup(t);
+  await page.evaluate(()=>{
+    history.pushState({},'', '/watch?v=next-video');
+    document.dispatchEvent(new Event('yt-navigate-finish'));
+    document.querySelector('.html5-video-player').classList.add('ad-showing');
+  });
+  await page.waitForFunction(()=>window.skipEvents.some(event=>event.trusted),null,{timeout:2000});
+  assert.equal(calls.filter(call=>call.params?.type==='mousePressed').length,1);
+  assert.deepEqual(await videoState(page),{rate:1.5,volume:1,muted:false});
+});
+
 test('an already showing preroll can skip after two aborted preparations',async t=>{
   const page=await openPage(t,{html:html.replace('html5-video-player','html5-video-player ad-showing'),local:{debuggerSkip:true}});
   await page.clock.install();

@@ -188,7 +188,7 @@
         onBeforeSkip: () => { if (session && root.contains(session.video)) stopAcceleration(); },
         useDebugger: () => settings.debuggerSkip,
         requestSkip: token => new Promise((resolve, reject) => {
-          chrome.runtime.sendMessage({ type: 'GENO_DEBUGGER_SKIP', token }, response => {
+          chrome.runtime.sendMessage({ type: 'GENO_DEBUGGER_SKIP', token, url: location.href }, response => {
             if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
             else resolve(response);
           });
