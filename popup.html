@@ -1,119 +1,54 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <title>GenoSkip</title>
-    <style>
-        body {
-            width: 300px;
-            padding: 15px;
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
-        }
-        .setting-group {
-            margin-bottom: 20px;
-            background: white;
-            padding: 12px;
-            border-radius: 6px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: bold;
-            color: #333;
-        }
-        input {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        textarea {
-            width: 100%;
-            height: 80px;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-family: monospace;
-            font-size: 12px;
-        }
-        button {
-            width: 100%;
-            padding: 10px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            margin-top: 10px;
-        }
-        button:hover {
-            background: #45a049;
-        }
-        .info {
-            font-size: 12px;
-            color: #666;
-            margin-top: 5px;
-        }
-        .header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-        .title {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin: 0;
-        }
-        .title img {
-            width: 32px;
-            height: 32px;
-            cursor: pointer;
-        }
-        .title img:hover {
-            opacity: 0.7;
-            transition: opacity 0.2s;
-        }
-        .go-button {
-            width: 80px;
-            padding: 8px 14px;
-            margin: 0;
-            background: #4CAF50;
-            text-align: center;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>じーのスキップ 設定</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { width: 360px; margin: 0 auto; padding: 22px; color: #302b25; background: #f8f5ee; font: 14px/1.6 system-ui, sans-serif; }
+    header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+    h1 { margin: 0; font-size: 19px; letter-spacing: .02em; }
+    .caption { margin: 0; color: #766b5b; font-size: 11px; }
+    #genoIcon { flex: 0 0 48px; height: 48px; background: url('assets/geno-faces.png') left center / 200% 100% no-repeat; }
+    #genoIcon.is-active { background-position: right center; animation: geno-popup-spin 700ms linear infinite; }
+    button { border: 0; border-radius: 10px; font: inherit; font-weight: 700; cursor: pointer; }
+    #goButton { margin-left: auto; min-width: 66px; padding: 10px; color: #fff; background: #454b39; }
+    #goButton[aria-pressed="true"] { background: #aa4b32; }
+    .setting-group { padding: 15px; margin: 12px 0; border: 1px solid #e7e0d3; border-radius: 13px; background: #fffdf9; }
+    label { display: block; margin-bottom: 8px; font-weight: 700; }
+    input, textarea { width: 100%; padding: 10px; border: 1px solid #cfc6b5; border-radius: 7px; color: #302b25; background: #fff; font: inherit; }
+    textarea { min-height: 100px; resize: vertical; font: 12px/1.7 ui-monospace, monospace; }
+    .info { margin: 7px 0 0; color: #766b5b; font-size: 11px; }
+    #saveButton { width: 100%; padding: 12px; background: #ead5a5; color: #302b25; }
+    button:hover { filter: brightness(.95); }
+    :focus-visible { outline: 2px solid #9c6a23; outline-offset: 2px; }
+    #statusMessage { min-height: 36px; margin: 12px 0 0; color: #48603b; font-size: 12px; overflow-wrap: anywhere; }
+    #statusMessage[data-error="true"] { color: #a13b27; }
+    @keyframes geno-popup-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { #genoIcon.is-active { animation: none; } }
+  </style>
 </head>
 <body>
-<div class="header">
-    <h2 class="title"><img id="genoIcon" src="icon48.png">GenoSkip 設定</h2>
-    <button id="goButton" class="go-button">Go!</button>
-</div>
-
-<div class="setting-group">
-    <label for="accelerationKey">加速キー（デフォルト: S）</label>
-    <input type="text" id="accelerationKey" maxlength="1" placeholder="S">
-    <div class="info">1文字のキーを入力してください</div>
-</div>
-
-<div class="setting-group">
-    <label for="videoUrl">対応する動画サイトURL</label>
-    <textarea id="videoUrl" placeholder="youtube.com&#10;nicovideo.jp&#10;..."></textarea>
-    <div class="info">1行につき1つのURLパターン（例: youtube.com）</div>
-</div>
-
-<button id="saveButton">設定を保存</button>
-<div id="saveMessage" style="margin-top: 10px; text-align: center; color: green; display: none;">
-    <div style="font-weight: bold;">保存されました</div>
-    <div style="font-size: 12px; margin-top: 5px;">※ タブを更新後、設定が有効になります</div>
-</div>
-
-<script src="popup.js"></script>
+  <header>
+    <span id="genoIcon" aria-hidden="true"></span>
+    <div><h1>じーのスキップ</h1><p class="caption">動画広告をぶっ飛ばせ！！！</p></div>
+    <button id="goButton" type="button" aria-label="動画の加速を切り替え" aria-pressed="false">Go!</button>
+  </header>
+  <div class="setting-group">
+    <label for="accelerationKey">加速キー（初期設定：S）</label>
+    <input id="accelerationKey" type="text" maxlength="1" placeholder="S" autocomplete="off" aria-describedby="keyHelp">
+    <p class="info" id="keyHelp">1文字でどうぞ。文字を打ってるときは暴れません。</p>
+  </div>
+  <div class="setting-group">
+    <label for="videoUrl">ぶっ飛ばすサイト</label>
+    <textarea id="videoUrl" spellcheck="false" placeholder="youtube.com&#10;nicovideo.jp" aria-describedby="siteHelp"></textarea>
+    <p class="info" id="siteHelp">1行に1サイト。youtube.com なら www.youtube.com もまとめて対象。全部消すと全サイトでお休み。</p>
+  </div>
+  <button id="saveButton" type="button">設定を保存</button>
+  <p class="info">顔を押せ！16倍速でぶっ飛ばすぞ！もう一度押すか、3秒たつと正気に戻ります。</p>
+  <p id="statusMessage" role="status" aria-live="polite"></p>
+  <script src="settings.js"></script>
+  <script src="popup.js"></script>
 </body>
 </html>

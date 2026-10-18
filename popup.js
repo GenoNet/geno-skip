@@ -1,83 +1,68 @@
-document.addEventListener('DOMContentLoaded', function() {
+(() => {
+  'use strict';
+  function initialize() {
+    const api = globalThis.GenoSkipSettings;
     const keyInput = document.getElementById('accelerationKey');
     const urlTextarea = document.getElementById('videoUrl');
-    const saveButton = document.getElementById('saveButton');
-    const saveMessage = document.getElementById('saveMessage');
-    const genoIcon = document.getElementById('genoIcon');
     const goButton = document.getElementById('goButton');
+    const status = document.getElementById('statusMessage');
+    let currentTabId = null;
 
-    // ジーノくんアイコンをクリック
-    genoIcon.addEventListener('click', function() {
-        chrome.tabs.create({
-            url: 'https://youtu.be/4-UbHw8eDzM?si=t8Kg0D0C2ZGCjKXW&t=0s'
-        });
-    });
-
-    // 設定を読み込む
-    chrome.storage.sync.get(['accelerationKey', 'videoUrls'], function(result) {
-        if (result.accelerationKey) {
-            keyInput.value = result.accelerationKey;
-        } else {
-            keyInput.value = 'S';
-        }
-
-        if (result.videoUrls && result.videoUrls.length > 0) {
-            urlTextarea.value = result.videoUrls.join('\n');
-        } else {
-            urlTextarea.value = 'youtube.com\nnicovideo.jp';
-        }
-    });
-
-    // 保存ボタン
-    saveButton.addEventListener('click', function() {
-        const key = keyInput.value.toUpperCase() || 'S';
-        const urls = urlTextarea.value
-            .split('\n')
-            .map(url => url.trim())
-            .filter(url => url.length > 0);
-
-        chrome.storage.sync.set({
-            accelerationKey: key,
-            videoUrls: urls
-        }, function() {
-            saveMessage.style.display = 'block';
-            setTimeout(() => {
-                saveMessage.style.display = 'none';
-            }, 2000);
-        });
-    });
-
-    // Go/Stop ボタンで加速トグル
+    function showStatus(text = '', error = false) {
+      status.textContent = text;
+      status.dataset.error = String(error);
+    }
     function updateGoLabel(active) {
-        goButton.textContent = active ? 'Stop!' : 'Go!';
-        goButton.style.background = active ? '#e53935' : '#4CAF50';
+      goButton.textContent = active ? 'Stop!' : 'Go!';
+      goButton.setAttribute('aria-pressed', String(active));
+      document.getElementById('genoIcon').classList.toggle('is-active', active);
+    }
+    function requestState(type) {
+      chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
+        if (chrome.runtime.lastError || !tabs?.[0]?.id) {
+          showStatus('まずは動画を開いてくれ！加速する相手がいない！', true);
+          return;
+        }
+        currentTabId = tabs[0].id;
+        chrome.tabs.sendMessage(currentTabId, { type }, response => {
+          if (chrome.runtime.lastError || !response || typeof response.isActive !== 'boolean') {
+            updateGoLabel(false);
+            showStatus('動画ページを開いてくれ！拡張を更新したらタブも再読み込み！', true);
+            return;
+          }
+          updateGoLabel(response.isActive);
+          showStatus(response.reason || '', !!response.reason);
+        });
+      });
     }
 
-    goButton.addEventListener('click', () => {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (!tabs || !tabs.length) return;
-            chrome.tabs.sendMessage(tabs[0].id, { type: 'TOGGLE_ACCELERATION' }, (response) => {
-                if (response && typeof response.isActive === 'boolean') {
-                    updateGoLabel(response.isActive);
-                }
-            });
-        });
+    chrome.storage.sync.get(['accelerationKey', 'videoUrls'], result => {
+      if (chrome.runtime.lastError) { showStatus('設定が読めなかった！いったん閉じて、もう一回開いてくれ！', true); return; }
+      const settings = api.fromStorage(result);
+      keyInput.value = settings.accelerationKey;
+      urlTextarea.value = Array.isArray(result.videoUrls) ? result.videoUrls.filter(value => typeof value === 'string').join('\n') : settings.videoUrls.join('\n');
     });
-
-    // コンテンツ側からの状態通知を反映
-    chrome.runtime.onMessage.addListener((message) => {
-        if (message && message.type === 'ACCEL_STATE' && typeof message.isActive === 'boolean') {
-            updateGoLabel(message.isActive);
-        }
+    document.getElementById('saveButton').addEventListener('click', () => {
+      const accelerationKey = api.normalizeKey(keyInput.value);
+      if (!accelerationKey) { showStatus('加速キーは1文字で頼む！空白はナシ！', true); keyInput.focus(); return; }
+      const parsed = api.parseSites(urlTextarea.value);
+      if (parsed.invalidLines.length) { showStatus(`サイトの${parsed.invalidLines.join('・')}行目がおかしいぞ！「youtube.com」みたいなサイト名か、http://・https://で始まるURLで頼む！`, true); urlTextarea.focus(); return; }
+      chrome.storage.sync.set({ accelerationKey, videoUrls: parsed.sites }, () => {
+        if (chrome.runtime.lastError) { showStatus('設定を保存できませんでした！ちょっと待って、もう一回頼む！', true); return; }
+        keyInput.value = accelerationKey;
+        urlTextarea.value = parsed.sites.join('\n');
+        showStatus('保存した！開いてるタブにも即反映！');
+      });
     });
-
-    // ポップアップ表示時に現在状態を問い合わせ
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (!tabs || !tabs.length) return;
-        chrome.tabs.sendMessage(tabs[0].id, { type: 'REQUEST_STATE' }, (response) => {
-            if (response && typeof response.isActive === 'boolean') {
-                updateGoLabel(response.isActive);
-            }
-        });
+    goButton.addEventListener('click', () => requestState('TOGGLE_ACCELERATION'));
+    chrome.runtime.onMessage.addListener((message, sender) => {
+      if (sender.tab?.id === currentTabId && message?.type === 'ACCEL_STATE' && typeof message.isActive === 'boolean') {
+        updateGoLabel(message.isActive);
+        showStatus(message.reason || '', !!message.reason);
+      }
     });
-});
+    requestState('REQUEST_STATE');
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once: true });
+  else initialize();
+})();
