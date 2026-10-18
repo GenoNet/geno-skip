@@ -1,9 +1,13 @@
 button.geno-skip-button {
   position: relative;
+  box-sizing: border-box;
+  cursor: pointer;
+  vertical-align: top;
+}
+button.geno-skip-button:not(.ytp-button) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-sizing: border-box;
   flex: 0 0 44px;
   width: 44px;
   height: 40px;
@@ -13,17 +17,18 @@ button.geno-skip-button {
   border-radius: 6px;
   background: transparent;
   color: #fff;
-  cursor: pointer;
-  vertical-align: top;
-  opacity: 1;
 }
 .html5-video-player button.geno-skip-button {
-  width: 48px;
-  height: 100%;
-  min-height: 32px;
+  width: var(--geno-control-width, 48px);
+  height: var(--geno-control-height, 48px);
+  padding: 0;
+  margin: 0;
+  border: 0;
+  overflow: visible;
 }
-button.geno-skip-button:hover { background: rgb(255 255 255 / 14%); }
-button.geno-skip-button:focus-visible { outline: 2px solid #ffe59d; outline-offset: -2px; }
+/* Native controls keep YouTube's own hover, focus and background rules. */
+button.geno-skip-button:not(.ytp-button):hover { background: rgb(255 255 255 / 14%); }
+button.geno-skip-button:not(.ytp-button):focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
 .geno-skip-button .geno-skip-face {
   position: absolute;
   left: 50%;
@@ -33,13 +38,12 @@ button.geno-skip-button:focus-visible { outline: 2px solid #ffe59d; outline-offs
   display: block;
   width: 32px;
   height: 32px;
-  flex: 0 0 32px;
   background-size: 200% 100%;
   background-position: left center;
   background-repeat: no-repeat;
   pointer-events: none;
 }
-.geno-skip-button[aria-pressed="true"] { box-shadow: inset 0 0 0 2px #ffd66d; }
+.geno-skip-button:not(.ytp-button)[aria-pressed="true"] { box-shadow: inset 0 0 0 2px #ffd66d; }
 .geno-skip-button[aria-pressed="true"] .geno-skip-face {
   background-position: right center;
   animation: geno-skip-spin 700ms linear infinite;
@@ -58,6 +62,7 @@ button.geno-skip-button:focus-visible { outline: 2px solid #ffe59d; outline-offs
 }
 .geno-skip-button[aria-pressed="true"] .geno-skip-badge { display: block; }
 .geno-skip-dock {
+  position: relative;
   display: flex;
   justify-content: flex-start;
   align-items: center;
@@ -65,6 +70,36 @@ button.geno-skip-button:focus-visible { outline: 2px solid #ffe59d; outline-offs
   width: 100%;
   min-height: 40px;
   background: #202124;
+}
+.geno-skip-tooltip {
+  position: absolute;
+  box-sizing: border-box;
+  width: max-content;
+  height: auto;
+  padding: 0;
+  margin: 0;
+  z-index: 1001;
+  transform: none !important;
+  opacity: 1 !important;
+  transition: none !important;
+  white-space: nowrap;
+  user-select: none;
+}
+.geno-skip-tooltip, .geno-skip-tooltip * { pointer-events: none !important; }
+.geno-skip-tooltip[hidden],
+.html5-video-player.ytp-autohide .geno-skip-tooltip { display: none !important; }
+/* Zero specificity lets native ytp-tooltip styles win over these fallback defaults. */
+:where(.geno-skip-tooltip-text) {
+  display: block;
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgb(28 28 28 / 90%);
+  color: #fff;
+  font: 500 12px/18px Roboto, Arial, sans-serif;
+  text-overflow: ellipsis;
 }
 @keyframes geno-skip-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {

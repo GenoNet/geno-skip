@@ -137,7 +137,7 @@
       }
     }
     for (const { root, video } of players.values()) {
-      const button = globalThis.GenoPlayerButtons.mount({ root, video, onToggle: () => toggleAcceleration(video) });
+      const button = globalThis.GenoPlayerButtons.mount({ root, video, onToggle: () => toggleAcceleration(video), accelerationKey: settings.accelerationKey });
       buttons.set(video, button);
       button.setActive(session?.video === video);
     }
