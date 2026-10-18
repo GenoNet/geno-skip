@@ -20,14 +20,14 @@
     function requestState(type) {
       chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
         if (chrome.runtime.lastError || !tabs?.[0]?.id) {
-          showStatus('操作する動画タブを開いてください。', true);
+          showStatus('まずは動画を開いてくれ！加速する相手がいない！', true);
           return;
         }
         currentTabId = tabs[0].id;
         chrome.tabs.sendMessage(currentTabId, { type }, response => {
           if (chrome.runtime.lastError || !response || typeof response.isActive !== 'boolean') {
             updateGoLabel(false);
-            showStatus('動画ページを開いてください。拡張を更新した後はタブを再読み込みしてください。', true);
+            showStatus('動画ページを開いてくれ！拡張を更新したらタブも再読み込み！', true);
             return;
           }
           updateGoLabel(response.isActive);
@@ -37,21 +37,21 @@
     }
 
     chrome.storage.sync.get(['accelerationKey', 'videoUrls'], result => {
-      if (chrome.runtime.lastError) { showStatus('設定を読み込めません。もう一度開いてください。', true); return; }
+      if (chrome.runtime.lastError) { showStatus('設定が読めなかった！いったん閉じて、もう一回開いてくれ！', true); return; }
       const settings = api.fromStorage(result);
       keyInput.value = settings.accelerationKey;
       urlTextarea.value = Array.isArray(result.videoUrls) ? result.videoUrls.filter(value => typeof value === 'string').join('\n') : settings.videoUrls.join('\n');
     });
     document.getElementById('saveButton').addEventListener('click', () => {
       const accelerationKey = api.normalizeKey(keyInput.value);
-      if (!accelerationKey) { showStatus('高速化キーは空白以外の1文字を入力してください。', true); keyInput.focus(); return; }
+      if (!accelerationKey) { showStatus('加速キーは1文字で頼む！空白はナシ！', true); keyInput.focus(); return; }
       const parsed = api.parseSites(urlTextarea.value);
-      if (parsed.invalidLines.length) { showStatus(`サイトの${parsed.invalidLines.join('・')}行目を確認してください。ホスト名またはHTTP(S) URLを入力してください。`, true); urlTextarea.focus(); return; }
+      if (parsed.invalidLines.length) { showStatus(`サイトの${parsed.invalidLines.join('・')}行目がおかしいぞ！「youtube.com」みたいなサイト名か、http://・https://で始まるURLで頼む！`, true); urlTextarea.focus(); return; }
       chrome.storage.sync.set({ accelerationKey, videoUrls: parsed.sites }, () => {
-        if (chrome.runtime.lastError) { showStatus('設定を保存できません。時間をおいて再度お試しください。', true); return; }
+        if (chrome.runtime.lastError) { showStatus('設定を保存できませんでした！ちょっと待って、もう一回頼む！', true); return; }
         keyInput.value = accelerationKey;
         urlTextarea.value = parsed.sites.join('\n');
-        showStatus('保存しました。開いているタブにも反映されます。');
+        showStatus('保存した！開いてるタブにも即反映！');
       });
     });
     goButton.addEventListener('click', () => requestState('TOGGLE_ACCELERATION'));

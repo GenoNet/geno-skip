@@ -48,7 +48,7 @@
   function onVideoReset() { stopAcceleration(); }
 
   function onRateChange() {
-    if (session && session.video.playbackRate !== 16) stopAcceleration('プレーヤー側が速度を変更したため、加速を解除しました。');
+    if (session && session.video.playbackRate !== 16) stopAcceleration('プレーヤーに速度を戻された！いったん加速をやめるぞ！');
   }
 
   function layoutArea(video) {
@@ -73,8 +73,8 @@
   }
 
   function startAcceleration(video) {
-    if (!supported()) { reason = 'このサイトは登録されていません。設定で追加してください。'; publishState(); return false; }
-    if (!video?.isConnected) { reason = '操作できる動画が見つかりません。'; publishState(); return false; }
+    if (!supported()) { reason = 'このサイトはまだ登録されてないぞ！設定で追加してくれ！'; publishState(); return false; }
+    if (!video?.isConnected) { reason = '動画が見つからないぞ！動画のあるページで頼む！'; publishState(); return false; }
     if (session) stopAcceleration();
     const saved = { video, rate: video.playbackRate, volume: video.volume, muted: video.muted };
     try {
@@ -83,7 +83,7 @@
       video.muted = true;
     } catch {
       restore(saved);
-      reason = 'このプレーヤーでは16倍速に変更できません。';
+      reason = 'ここのプレーヤー、16倍速を受け付けないぞ！';
       publishState();
       return false;
     }
@@ -200,7 +200,7 @@
       toggleAcceleration();
       sendResponse(getAccelerationState());
     } else if (message?.type === 'REQUEST_STATE') {
-      sendResponse({ ...getAccelerationState(), ...(!supported() ? { reason: 'このサイトは登録されていません。設定で追加してください。' } : {}) });
+      sendResponse({ ...getAccelerationState(), ...(!supported() ? { reason: 'このサイトはまだ登録されてないぞ！設定で追加してくれ！' } : {}) });
     }
   });
   chrome.storage.onChanged.addListener((changes, area) => {

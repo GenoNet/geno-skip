@@ -32,21 +32,21 @@
 <body>
   <header>
     <span id="genoIcon" aria-hidden="true"></span>
-    <div><h1>じーのスキップ</h1><p class="caption">3秒だけ、16倍速。</p></div>
+    <div><h1>じーのスキップ</h1><p class="caption">動画広告をぶっ飛ばせ！！！</p></div>
     <button id="goButton" type="button" aria-label="動画の加速を切り替え" aria-pressed="false">Go!</button>
   </header>
   <div class="setting-group">
-    <label for="accelerationKey">高速化キー</label>
+    <label for="accelerationKey">加速キー（初期設定：S）</label>
     <input id="accelerationKey" type="text" maxlength="1" placeholder="S" autocomplete="off" aria-describedby="keyHelp">
-    <p class="info" id="keyHelp">初期設定は S。入力欄での文字入力中は動作しません。</p>
+    <p class="info" id="keyHelp">1文字でどうぞ。文字を打ってるときは暴れません。</p>
   </div>
   <div class="setting-group">
-    <label for="videoUrl">対応サイト</label>
+    <label for="videoUrl">ぶっ飛ばすサイト</label>
     <textarea id="videoUrl" spellcheck="false" placeholder="youtube.com&#10;nicovideo.jp" aria-describedby="siteHelp"></textarea>
-    <p class="info" id="siteHelp">1行に1つ、ホスト名またはURLを登録。サブドメインも対象です。空欄で全サイトを無効にします。</p>
+    <p class="info" id="siteHelp">1行に1サイト。youtube.com なら www.youtube.com もまとめて対象。全部消すと全サイトでお休み。</p>
   </div>
   <button id="saveButton" type="button">設定を保存</button>
-  <p class="info">顔ボタンをクリックすると加速。もう一度クリック、または3秒で元の状態に戻ります。</p>
+  <p class="info">顔を押せ！16倍速でぶっ飛ばすぞ！もう一度押すか、3秒たつと正気に戻ります。</p>
   <p id="statusMessage" role="status" aria-live="polite"></p>
   <script src="settings.js"></script>
   <script src="popup.js"></script>
