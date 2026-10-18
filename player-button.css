@@ -1,6 +1,6 @@
 button.geno-skip-button {
   --geno-face-size: 24px;
-  position: relative;
+  position: relative !important;
   box-sizing: border-box;
   cursor: pointer;
   vertical-align: top;
@@ -26,19 +26,31 @@ button.geno-skip-button:not(.ytp-button) {
   padding: 0;
   margin: 0;
   border: 0;
-  overflow: visible;
+  overflow: hidden;
 }
 /* Native controls keep YouTube's own hover, focus and background rules. */
 button.geno-skip-button:not(.ytp-button):hover { background: rgb(255 255 255 / 14%); }
 button.geno-skip-button:not(.ytp-button):focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
-.geno-skip-button .geno-skip-face {
+.geno-skip-button > .geno-skip-icon {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  margin-left: calc(var(--geno-face-size) / -2);
-  margin-top: calc(var(--geno-face-size) / -2);
+  inset: 0;
+  display: grid;
+  place-items: center;
+  contain: paint;
+  pointer-events: none;
+}
+.geno-skip-button .geno-skip-face {
+  position: static !important;
+  box-sizing: border-box;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0;
   display: block;
   /* Player SVG rules must not stretch the sprite; leave room for its rotation. */
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: var(--geno-face-size) !important;
+  max-height: var(--geno-face-size) !important;
   width: var(--geno-face-size) !important;
   height: var(--geno-face-size) !important;
   background-size: 200% 100%;

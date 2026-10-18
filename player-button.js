@@ -145,11 +145,15 @@
     face.setAttribute('focusable', 'false');
     face.setAttribute('aria-hidden', 'true');
     face.style.backgroundImage = `url("${chrome.runtime.getURL('assets/geno-faces.png')}")`;
+    const icon = document.createElement('span');
+    icon.className = 'geno-skip-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.append(face);
     const badge = document.createElement('span');
     badge.className = 'geno-skip-badge';
     badge.textContent = '16×';
     badge.setAttribute('aria-hidden', 'true');
-    button.append(face, badge);
+    button.append(icon, badge);
     button.addEventListener('click', event => { event.stopPropagation(); onToggle(); });
     // A player's mouse-down handler must not treat our control as a video click.
     button.addEventListener('pointerdown', event => event.stopPropagation());

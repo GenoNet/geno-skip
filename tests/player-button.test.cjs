@@ -46,6 +46,33 @@ test('face fits small native controls despite YouTube SVG styles, including whil
   }
 });
 
+test('native SVG minimum sizes and margins cannot move the face outside its centered frame',async t=>{
+  const html=`<style>
+    .html5-video-player{position:relative;width:640px;}
+    .ytp-chrome-controls{height:40px;}
+    .ytp-right-controls{display:flex;justify-content:flex-end;}
+    .html5-video-player .ytp-chrome-controls .ytp-button{position:relative;width:40px;height:40px;padding:0;border:0;}
+    .html5-video-player .ytp-chrome-controls .geno-skip-button{position:static;}
+    .html5-video-player .ytp-chrome-controls .ytp-button svg{position:absolute;top:50%;left:50%;min-width:100%;min-height:100%;margin:0;}
+  </style><div class="html5-video-player"><video style="width:640px;height:360px"></video><div class="ytp-chrome-controls"><div class="ytp-right-controls"><button class="ytp-button ytp-settings-button"><svg viewBox="0 0 24 24"></svg></button></div></div></div>`;
+  const page=await openPage(t,{html});
+  await loadContent(page);
+  const button=page.locator('.geno-skip-button');
+  for(const zoom of [1,1.25,2]) {
+    await page.evaluate(zoom=>{document.body.style.zoom=zoom;},zoom);
+    for(const active of [false,true]) {
+      if(active) await button.click();
+      if(active) await button.locator('.geno-skip-face').evaluate(face=>{const animation=face.getAnimations()[0];animation.pause();animation.currentTime=700/8;});
+      const bounds=await button.evaluate(button=>{
+        const b=button.getBoundingClientRect(),f=button.querySelector('.geno-skip-face').getBoundingClientRect();
+        return {inside:f.left>=b.left && f.right<=b.right && f.top>=b.top && f.bottom<=b.bottom,centered:Math.abs((b.left+b.right-f.left-f.right)/2)<.5 && Math.abs((b.top+b.bottom-f.top-f.bottom)/2)<.5,smaller:f.width<b.width && f.height<b.height};
+      });
+      assert.deepEqual(bounds,{inside:true,centered:true,smaller:true},`zoom=${zoom}, active=${active}`);
+      if(active) await button.click();
+    }
+  }
+});
+
 test('YouTube button changes face and spins throughout acceleration, restores on click', async t => {
   const page = await openPage(t,{html:youtube});
   await loadContent(page);
