@@ -3,6 +3,7 @@
   const settingsApi = globalThis.GenoSkipSettings;
   let settings = settingsApi.fromStorage();
   let ready = false;
+  let pageActive = true;
   let session = null;
   let timer = null;
   let reason = '';
@@ -15,11 +16,13 @@
   const adSkippers = new Map();
   const lifecycleEvents = ['ended', 'emptied', 'loadstart'];
   const playerSelector = 'video, .html5-video-player, .ytp-right-controls, .ytp-chrome-controls';
-  const supported = () => ready && settingsApi.matches(location.hostname, settings.videoUrls);
-  const getAccelerationState = () => ({ isActive: !!session, ...(reason ? { reason } : {}) });
+  const supported = () => ready && pageActive && settingsApi.matches(location.hostname, settings.videoUrls);
+  const adAccelerationFor = video => [...adSkippers.values()].find(skipper => skipper.isAccelerating(video));
+  const videoIsActive = video => session?.video === video || !!adAccelerationFor(video);
+  const getAccelerationState = () => ({ isActive: !!session || !!adAccelerationFor(), ...(reason ? { reason } : {}) });
 
   function publishState() {
-    for (const [video, button] of buttons) button.setActive(session?.video === video);
+    for (const [video, button] of buttons) button.setActive(videoIsActive(video));
     try {
       chrome.runtime.sendMessage({ type: 'ACCEL_STATE', ...getAccelerationState() }, () => { void chrome.runtime.lastError; });
     } catch { /* Extension may have been reloaded while the tab stayed open. */ }
@@ -98,7 +101,9 @@
   }
 
   function toggleAcceleration(video) {
-    if (session && (!video || session.video === video)) stopAcceleration();
+    const adAcceleration = adAccelerationFor(video || session?.video || chooseVideo());
+    if (adAcceleration) adAcceleration.cancelAcceleration();
+    else if (session && (!video || session.video === video)) stopAcceleration();
     else startAcceleration(video || chooseVideo());
   }
 
@@ -139,7 +144,7 @@
     for (const { root, video } of players.values()) {
       const button = globalThis.GenoPlayerButtons.mount({ root, video, onToggle: () => toggleAcceleration(video), accelerationKey: settings.accelerationKey });
       buttons.set(video, button);
-      button.setActive(session?.video === video);
+      button.setActive(videoIsActive(video));
     }
     configureAdSkipping();
   }
@@ -153,10 +158,18 @@
     }
     for (const root of roots) {
       if (!adSkippers.has(root)) adSkippers.set(root, globalThis.GenoAdSkip.watch(root, {
+        getVideo: () => [...buttons.keys()].find(video => video.isConnected && video.closest('.html5-video-player') === root),
+        onBeforeAccelerate: video => { if (session?.video === video) stopAcceleration(); },
+        onStateChange: publishState,
         onBeforeSkip: () => { if (session && root.contains(session.video)) stopAcceleration(); }
       }));
       adSkippers.get(root).check();
     }
+  }
+
+  function stopAdSkipping() {
+    for (const skipper of adSkippers.values()) skipper.destroy();
+    adSkippers.clear();
   }
 
   function scheduleRefresh() {
@@ -179,8 +192,7 @@
       stopAcceleration();
       for (const button of buttons.values()) button.destroy();
       buttons.clear();
-      for (const skipper of adSkippers.values()) skipper.destroy();
-      adSkippers.clear();
+      stopAdSkipping();
       return;
     }
     if (!observer) {
@@ -210,10 +222,11 @@
     if (!event.isTrusted) return;
     if (session && !event.composedPath().some(node => node instanceof Element && node.classList.contains('geno-skip-button'))) stopAcceleration();
   });
-  document.addEventListener('yt-navigate-finish', () => { if (session) stopAcceleration(); scheduleRefresh(); });
+  document.addEventListener('yt-navigate-finish', () => { if (session) stopAcceleration(); stopAdSkipping(); scheduleRefresh(); });
   document.addEventListener('loadedmetadata', scheduleRefresh, true);
   document.addEventListener('fullscreenchange', scheduleRefresh);
-  window.addEventListener('pagehide', () => { if (session) stopAcceleration(); });
+  window.addEventListener('pagehide', () => { pageActive = false; configureMonitoring(); });
+  window.addEventListener('pageshow', () => { pageActive = true; configureMonitoring(); });
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === 'TOGGLE_ACCELERATION') {

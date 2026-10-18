@@ -26,6 +26,26 @@ test('face remains centered when native player styles change the button display'
   }
 });
 
+test('face fits small native controls despite YouTube SVG styles, including while rotating',async t=>{
+  const html=`<style>
+    .html5-video-player .ytp-chrome-controls .ytp-button svg {width:100%;height:100%;}
+    .ytp-right-controls{display:flex;height:32px;}
+    .ytp-right-controls .ytp-button{box-sizing:border-box;width:36px;height:32px;padding:0;border:0;}
+  </style><div class="html5-video-player"><video style="width:640px;height:360px"></video><div class="ytp-chrome-controls"><div class="ytp-right-controls"><button class="ytp-button ytp-settings-button"><svg viewBox="0 0 24 24"></svg></button></div></div></div>`;
+  const page=await openPage(t,{html});
+  await loadContent(page);
+  const button=page.locator('.geno-skip-button');
+  for(const active of [false,true]) {
+    if(active) await button.click();
+    if(active) await button.locator('.geno-skip-face').evaluate(face=>{const animation=face.getAnimations()[0];animation.pause();animation.currentTime=700/8;});
+    const bounds=await button.evaluate(button=>{
+      const b=button.getBoundingClientRect(),f=button.querySelector('.geno-skip-face').getBoundingClientRect();
+      return {inside:f.left>=b.left && f.right<=b.right && f.top>=b.top && f.bottom<=b.bottom,centered:Math.abs((b.left+b.right-f.left-f.right)/2)<0.5 && Math.abs((b.top+b.bottom-f.top-f.bottom)/2)<0.5};
+    });
+    assert.deepEqual(bounds,{inside:true,centered:true});
+  }
+});
+
 test('YouTube button changes face and spins throughout acceleration, restores on click', async t => {
   const page = await openPage(t,{html:youtube});
   await loadContent(page);

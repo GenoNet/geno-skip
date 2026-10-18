@@ -1,4 +1,5 @@
 button.geno-skip-button {
+  --geno-face-size: 24px;
   position: relative;
   box-sizing: border-box;
   cursor: pointer;
@@ -19,6 +20,7 @@ button.geno-skip-button:not(.ytp-button) {
   color: #fff;
 }
 .html5-video-player button.geno-skip-button {
+  --geno-face-size: min(24px, calc(var(--geno-control-width, 48px) * .6), calc(var(--geno-control-height, 48px) * .6));
   width: var(--geno-control-width, 48px);
   height: var(--geno-control-height, 48px);
   padding: 0;
@@ -33,11 +35,12 @@ button.geno-skip-button:not(.ytp-button):focus-visible { outline: 2px solid #fff
   position: absolute;
   left: 50%;
   top: 50%;
-  margin-left: -16px;
-  margin-top: -16px;
+  margin-left: calc(var(--geno-face-size) / -2);
+  margin-top: calc(var(--geno-face-size) / -2);
   display: block;
-  width: 32px;
-  height: 32px;
+  /* Player SVG rules must not stretch the sprite; leave room for its rotation. */
+  width: var(--geno-face-size) !important;
+  height: var(--geno-face-size) !important;
   background-size: 200% 100%;
   background-position: left center;
   background-repeat: no-repeat;

@@ -72,6 +72,7 @@ test('does not retry a clicked control on every mutation, but handles the next a
 
 test('restores accelerated video before skip even when the site stops click propagation',async t=>{
   const page=await setup(t,{html:fixture({ad:false})});
+  await page.locator('.ytp-ad-skip-button-modern').evaluate(button=>button.addEventListener('click',()=>button.closest('.html5-video-player').classList.remove('ad-showing')));
   await page.locator('video').evaluate(v=>{v.playbackRate=1.5;v.volume=0;v.muted=true;});
   await loadContent(page);
   await page.keyboard.press('s');
@@ -181,4 +182,50 @@ test('disabling the site also removes CSS transition availability listeners',asy
     button.addEventListener('transitionend',resolve,{once:true});button.style.opacity='1';
   }));
   assert.equal(await clicks(page),0);
+});
+
+test('clicks the native skip button inside a non-button skip wrapper',async t=>{
+  const page=await setup(t,{html:fixture({button:'<div class="ytp-skip-ad-button"><button>スキップ</button></div>'})});
+  await loadContent(page);
+  assert.equal(await clicks(page),1);
+});
+
+test('retries an early skip click after the site attaches its handler',async t=>{
+  const page=await setup(t);
+  await page.clock.install();
+  await loadContent(page);
+  assert.equal(await clicks(page),1);
+  await page.clock.runFor(200);
+  await page.locator('.ytp-ad-skip-button-modern').evaluate(button=>{
+    button.addEventListener('click',()=>{window.adSkipped=true;button.closest('.html5-video-player').classList.remove('ad-showing');});
+  });
+  await page.clock.runFor(1000);
+  assert.equal(await page.evaluate(()=>window.adSkipped),true);
+  assert.equal(await clicks(page),2);
+  await page.clock.runFor(2000);
+  assert.equal(await clicks(page),2);
+});
+
+test('limits retries when a native skip control does not respond',async t=>{
+  const page=await setup(t);
+  await page.clock.install();
+  await loadContent(page);
+  await page.clock.runFor(10000);
+  assert.equal(await clicks(page),3);
+  await page.evaluate(()=>document.querySelector('#ad-controls').append(document.createElement('span')));
+  await page.clock.runFor(1000);
+  assert.equal(await clicks(page),3);
+});
+
+test('detects a skip control revealed by a stylesheet change without DOM mutations',async t=>{
+  const page=await setup(t);
+  await page.clock.install();
+  const style=await page.addStyleTag({content:'.ytp-ad-skip-button-modern{display:none}'});
+  await page.locator('.ytp-ad-skip-button-modern').evaluate(button=>button.addEventListener('click',()=>button.closest('.html5-video-player').classList.remove('ad-showing')));
+  await loadContent(page);
+  await page.clock.runFor(100);
+  assert.equal(await clicks(page),0);
+  await style.evaluate(style=>{style.sheet.disabled=true;});
+  await page.clock.runFor(1000);
+  assert.equal(await clicks(page),1);
 });
