@@ -30,3 +30,9 @@ test('empty sites disable all sites and corrupt stored values are ignored',()=>{
   assert.equal(s.normalizeKey(' a '),'A');
   assert.equal(s.normalizeKey('Enter'),null);
 });
+test('debugger skip is opt-in and only accepts an explicit boolean',()=>{
+  const s=settings();
+  assert.equal(s.fromStorage().debuggerSkip,false);
+  assert.equal(s.fromStorage({debuggerSkip:'true'}).debuggerSkip,false);
+  assert.equal(s.fromStorage({debuggerSkip:true}).debuggerSkip,true);
+});

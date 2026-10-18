@@ -18,6 +18,8 @@
     .setting-group { padding: 15px; margin: 12px 0; border: 1px solid #e7e0d3; border-radius: 13px; background: #fffdf9; }
     label { display: block; margin-bottom: 8px; font-weight: 700; }
     input, textarea { width: 100%; padding: 10px; border: 1px solid #cfc6b5; border-radius: 7px; color: #302b25; background: #fff; font: inherit; }
+    .toggle { display: flex; align-items: center; gap: 8px; }
+    .toggle input { width: 16px; height: 16px; margin: 0; }
     textarea { min-height: 100px; resize: vertical; font: 12px/1.7 ui-monospace, monospace; }
     .info { margin: 7px 0 0; color: #766b5b; font-size: 11px; }
     #saveButton { width: 100%; padding: 12px; background: #ead5a5; color: #302b25; }
@@ -44,6 +46,12 @@
     <label for="videoUrl">ぶっ飛ばすサイト</label>
     <textarea id="videoUrl" spellcheck="false" placeholder="youtube.com&#10;nicovideo.jp" aria-describedby="siteHelp"></textarea>
     <p class="info" id="siteHelp">1行に1サイト。youtube.com なら www.youtube.com もまとめて対象。全部消すと全サイトでお休み。</p>
+  </div>
+  <div class="setting-group">
+    <label class="toggle" for="debuggerSkip"><input id="debuggerSkip" type="checkbox" aria-describedby="debuggerHelp">SKIPボタンも実クリックでぶっ飛ばす</label>
+    <p class="info" id="debuggerHelp">普通のクリックが効かないYouTube用。初期設定はOFF。このブラウザだけで有効になります。</p>
+    <p class="info">Chromeのデバッグ権限を使います。「デバッグ中」の表示が出ます。ONにする前にDevToolsを閉じてくれ！</p>
+    <p class="info" id="debuggerStatus" role="status" aria-live="polite"></p>
   </div>
   <button id="saveButton" type="button">設定を保存</button>
   <p class="info">顔を押せ！16倍速でぶっ飛ばすぞ！もう一度押すか、3秒たつと正気に戻ります。</p>

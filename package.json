@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "test": "node --test --test-concurrency=1 tests/*.test.cjs",
-    "check": "node --check settings.js && node --check content.js && node --check player-button.js && node --check ad-skip.js && node --check popup.js"
+    "check": "node --check settings.js && node --check content.js && node --check player-button.js && node --check ad-skip.js && node --check popup.js && node --check background.js"
   },
   "devDependencies": { "playwright-core": "1.57.0" },
   "engines": { "node": ">=24" }

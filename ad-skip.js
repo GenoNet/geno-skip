@@ -6,19 +6,42 @@
   const fastAttempts = 3;
   const maxRateAttempts = 3;
 
-  function available(button) {
+  function available(button, hitTest = false) {
     if (typeof button.click !== 'function' || button.matches(':disabled') ||
         button.closest('[aria-disabled="true"], [hidden], [inert]')) return false;
     if (button.checkVisibility && !button.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return false;
     const rect = button.getBoundingClientRect();
     const style = getComputedStyle(button);
-    return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.pointerEvents !== 'none';
+    if (rect.width <= 0 || rect.height <= 0 || style.visibility === 'hidden' || style.pointerEvents === 'none') return false;
+    const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
+    return !hitTest || (x >= 0 && y >= 0 && x < innerWidth && y < innerHeight && button.contains(document.elementFromPoint(x, y)));
   }
 
-  function watch(root, { onBeforeSkip, getVideo, onBeforeAccelerate, onStateChange } = {}) {
+  function watch(root, { onBeforeSkip, getVideo, onBeforeAccelerate, onStateChange, useDebugger, requestSkip, onSkipError } = {}) {
     let clicked = new WeakMap();
     let frame = null, timer = null, destroyed = false;
     let acceleration = null, cancelled = false, rejected = new WeakSet();
+    let pending = null;
+    let debuggerMode = useDebugger?.() === true;
+    function cancelPending() {
+      if (!pending) return;
+      clearTimeout(pending.timer);
+      if (pending.button.getAttribute('data-geno-debugger-skip') === pending.token) pending.button.removeAttribute('data-geno-debugger-skip');
+      pending = null;
+    }
+    function requestDebugSkip(button) {
+      const request = { button, token: crypto.randomUUID(), prepared: false };
+      pending = request;
+      button.setAttribute('data-geno-debugger-skip', request.token);
+      function finish(response) {
+        if (pending !== request) return;
+        cancelPending();
+        if (response?.reason) onSkipError?.(response.reason);
+        check();
+      }
+      request.timer = setTimeout(() => finish({ reason: 'SKIPの応答がないぞ！いったん設定でOFFにしてくれ！' }), 3000);
+      Promise.resolve().then(() => requestSkip(request.token)).then(finish, () => finish({ reason: 'SKIPのデバッグ入力に失敗！拡張とタブを再読み込みしてくれ！' }));
+    }
     function stopAcceleration() {
       if (!acceleration) return;
       const saved = acceleration;
@@ -53,6 +76,7 @@
       }
     }
     function resetAd() {
+      cancelPending();
       clicked = new WeakMap();
       cancelled = false;
       rejected = new WeakSet();
@@ -70,7 +94,7 @@
       }
     }
     function check(records = []) {
-      if (destroyed || !root.isConnected) { cancelCheck(); stopAcceleration(); return; }
+      if (destroyed || !root.isConnected) { cancelPending(); cancelCheck(); stopAcceleration(); return; }
       if (Array.isArray(records)) {
         // Class transitions can be batched, with the root already back in its ad state.
         if (records.some(record => record.target === root && record.attributeName === 'class' &&
@@ -80,19 +104,28 @@
       if (!root.matches('.ad-showing, .ad-interrupting')) { resetAd(); cancelCheck(); return; }
       // CSS visibility and late event handlers do not always produce DOM mutations.
       scheduleCheck();
-      accelerate();
+      const debug = useDebugger?.() === true;
+      if (debug !== debuggerMode) { cancelPending(); clicked = new WeakMap(); debuggerMode = debug; }
+      if (!pending?.prepared) accelerate();
+      if (pending) return;
       for (const control of root.querySelectorAll(selector)) {
         const button = control.matches('button, [role="button"]') ? control : control.querySelector('button, [role="button"]') || control;
         if (button.closest('.html5-video-player') !== root) continue;
-        if (!available(button)) { clicked.delete(button); continue; }
+        if (!available(button, debug)) { if (!debug) clicked.delete(button); continue; }
         const previous = clicked.get(button), now = performance.now();
-        const delay = previous?.attempts >= fastAttempts ? slowRetryDelay : retryDelay;
+        const delay = debug || previous?.attempts >= fastAttempts ? slowRetryDelay : retryDelay;
         if (previous && now - previous.time < delay) continue;
+        if (debug && previous?.attempts >= 2) {
+          if (!previous.warned) { previous.warned = true; onSkipError?.('SKIPを2回押したが広告が残ってる！この広告は手で押してくれ！'); }
+          continue;
+        }
         clicked.set(button, { attempts: (previous?.attempts || 0) + 1, time: now });
+        if (debug) { requestDebugSkip(button); break; }
         // Use the site's exposed skip control; never enable a countdown or seek past an ad.
         stopAcceleration();
         onBeforeSkip?.();
         button.click();
+        if (root.matches('.ad-showing, .ad-interrupting')) accelerate();
         const ownChanges = observer.takeRecords();
         forgetRemoved(ownChanges);
         // A click can rebuild the player's classes. Do not treat those changes as a new ad.
@@ -114,10 +147,19 @@
     const mediaEvents = ['loadstart', 'loadedmetadata'];
     mediaEvents.forEach(type => root.addEventListener(type, onMediaLoad, true));
     return { check,
+      prepareSkip(token) {
+        if (!pending || pending.token !== token || !useDebugger?.() || destroyed || !root.isConnected ||
+            !root.matches('.ad-showing, .ad-interrupting') || pending.button.closest('.html5-video-player') !== root || !available(pending.button)) return false;
+        pending.prepared = true;
+        stopAcceleration();
+        onBeforeSkip?.();
+        return true;
+      },
       isAccelerating(video) { return !!acceleration && (!video || acceleration.video === video); },
       cancelAcceleration() { cancelled = true; stopAcceleration(); },
       destroy() {
         destroyed = true;
+        cancelPending();
         cancelCheck();
         stopAcceleration();
         observer.disconnect();

@@ -28,7 +28,8 @@
   function fromStorage(value = {}) {
     return {
       accelerationKey: normalizeKey(value.accelerationKey) || defaults.accelerationKey,
-      videoUrls: Array.isArray(value.videoUrls) ? parseSites(value.videoUrls).sites : [...defaults.videoUrls]
+      videoUrls: Array.isArray(value.videoUrls) ? parseSites(value.videoUrls).sites : [...defaults.videoUrls],
+      debuggerSkip: value.debuggerSkip === true
     };
   }
   function matches(hostname, sites) {

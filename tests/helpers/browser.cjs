@@ -3,16 +3,17 @@ const path = require('node:path');
 const fs = require('node:fs');
 const root = path.resolve(__dirname, '../..');
 
-async function openPage(t, { html = '<video style="width:640px;height:360px"></video>', hostname = 'www.youtube.com', storage = {} } = {}) {
+async function openPage(t, { html = '<video style="width:640px;height:360px"></video>', hostname = 'www.youtube.com', storage = {}, local = {} } = {}) {
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE_PATH || '/usr/bin/chromium', headless: true });
   t.after(() => browser.close());
   const page = await browser.newPage();
   await page.route('https://assets.test/**', route => route.fulfill({ contentType: 'image/png', headers: { 'Access-Control-Allow-Origin': '*' }, body: fs.readFileSync(path.join(root, 'assets/geno-faces.png')) }));
   await page.route(`https://${hostname}/**`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><html><body>${html}</body></html>` }));
   await page.goto(`https://${hostname}/watch`);
-  await page.evaluate(storage => {
+  await page.evaluate(({ storage, local }) => {
     window.testMessages = [];
     window.testStorage = storage;
+    window.testLocalStorage = local;
     window.testStorageListeners = [];
     window.testMessageListeners = [];
     window.chrome = {
@@ -23,6 +24,7 @@ async function openPage(t, { html = '<video style="width:640px;height:360px"></v
       },
       storage: {
         sync: { get: (keys, cb) => cb(window.testStorage), set: (values, cb) => { Object.assign(window.testStorage, values); cb?.(); } },
+        local: { get: (keys, cb) => cb(window.testLocalStorage), set: (values, cb) => { window.updateLocalSettings(values); cb?.(); } },
         onChanged: { addListener: cb => window.testStorageListeners.push(cb) }
       }
     };
@@ -33,7 +35,12 @@ async function openPage(t, { html = '<video style="width:640px;height:360px"></v
       Object.assign(window.testStorage, values);
       window.testStorageListeners.forEach(fn => fn(changes, 'sync'));
     };
-  }, storage);
+    window.updateLocalSettings = values => {
+      const changes = Object.fromEntries(Object.entries(values).map(([key, value]) => [key, { newValue: value, oldValue: window.testLocalStorage[key] }]));
+      Object.assign(window.testLocalStorage, values);
+      window.testStorageListeners.forEach(fn => fn(changes, 'local'));
+    };
+  }, { storage, local });
   return page;
 }
 

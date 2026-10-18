@@ -6,7 +6,11 @@
     const urlTextarea = document.getElementById('videoUrl');
     const goButton = document.getElementById('goButton');
     const status = document.getElementById('statusMessage');
+    const debuggerInput = document.getElementById('debuggerSkip');
+    const debuggerStatus = document.getElementById('debuggerStatus');
+    const saveButton = document.getElementById('saveButton');
     let currentTabId = null;
+    saveButton.disabled = true;
 
     function showStatus(text = '', error = false) {
       status.textContent = text;
@@ -41,18 +45,36 @@
       const settings = api.fromStorage(result);
       keyInput.value = settings.accelerationKey;
       urlTextarea.value = Array.isArray(result.videoUrls) ? result.videoUrls.filter(value => typeof value === 'string').join('\n') : settings.videoUrls.join('\n');
+      chrome.storage.local.get(['debuggerSkip', 'debuggerSkipError'], local => {
+        if (chrome.runtime.lastError) { showStatus('SKIPの設定が読めなかった！もう一回開いてくれ！', true); return; }
+        debuggerInput.checked = local.debuggerSkip === true;
+        debuggerStatus.textContent = local.debuggerSkipError || '';
+        saveButton.disabled = false;
+      });
     });
-    document.getElementById('saveButton').addEventListener('click', () => {
+    saveButton.addEventListener('click', () => {
       const accelerationKey = api.normalizeKey(keyInput.value);
       if (!accelerationKey) { showStatus('加速キーは1文字で頼む！空白はナシ！', true); keyInput.focus(); return; }
       const parsed = api.parseSites(urlTextarea.value);
       if (parsed.invalidLines.length) { showStatus(`サイトの${parsed.invalidLines.join('・')}行目がおかしいぞ！「youtube.com」みたいなサイト名か、http://・https://で始まるURLで頼む！`, true); urlTextarea.focus(); return; }
+      const debuggerSkip = debuggerInput.checked;
+      saveButton.disabled = true;
       chrome.storage.sync.set({ accelerationKey, videoUrls: parsed.sites }, () => {
-        if (chrome.runtime.lastError) { showStatus('設定を保存できませんでした！ちょっと待って、もう一回頼む！', true); return; }
-        keyInput.value = accelerationKey;
-        urlTextarea.value = parsed.sites.join('\n');
-        showStatus('保存した！開いてるタブにも即反映！');
+        if (chrome.runtime.lastError) { saveButton.disabled = false; showStatus('設定を保存できませんでした！ちょっと待って、もう一回頼む！', true); return; }
+        chrome.storage.local.set({ debuggerSkip, debuggerSkipError: '' }, () => {
+          saveButton.disabled = false;
+          if (chrome.runtime.lastError) { showStatus('SKIPの設定を保存できませんでした！もう一回頼む！', true); return; }
+          keyInput.value = accelerationKey;
+          urlTextarea.value = parsed.sites.join('\n');
+          debuggerStatus.textContent = '';
+          showStatus('保存した！開いてるタブにも即反映！');
+        });
       });
+    });
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== 'local') return;
+      if (changes.debuggerSkip) debuggerInput.checked = changes.debuggerSkip.newValue === true;
+      if (changes.debuggerSkipError) debuggerStatus.textContent = changes.debuggerSkipError.newValue || '';
     });
     goButton.addEventListener('click', () => requestState('TOGGLE_ACCELERATION'));
     chrome.runtime.onMessage.addListener((message, sender) => {

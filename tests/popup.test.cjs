@@ -3,9 +3,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const {openPage, root} = require('./helpers/browser.cjs');
-async function popup(t,{storage={},response={isActive:false},missing=false}={}) {
+async function popup(t,{storage={},local={},response={isActive:false},missing=false}={}) {
   const html=fs.readFileSync(path.join(root,'popup.html'),'utf8').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'');
-  const page=await openPage(t,{html,storage});
+  const page=await openPage(t,{html,storage,local});
   await page.evaluate(({response,missing})=>{
     window.testResponse=response;window.testMissing=missing;
     chrome.tabs={query:(filter,cb)=>cb([{id:10}]),sendMessage:(id,message,cb)=>{
@@ -56,4 +56,24 @@ test('storage failure is shown and never claimed as saved',async t=>{
   await page.locator('#saveButton').click();
   assert.equal(await page.locator('#statusMessage').count(),1);
   assert.match(await page.locator('#statusMessage').textContent(),/保存できません/);
+});
+test('debugger mode defaults off, saves per browser and can be turned off again',async t=>{
+  const page=await popup(t);
+  assert.equal(await page.locator('#debuggerSkip').count(),1);
+  assert.equal(await page.locator('#debuggerSkip').isChecked(),false);
+  await page.locator('#debuggerSkip').check();
+  await page.locator('#saveButton').click();
+  assert.equal(await page.evaluate(()=>window.testLocalStorage.debuggerSkip),true);
+  assert.equal(await page.evaluate(()=>window.testStorage.debuggerSkip),undefined);
+  await page.locator('#debuggerSkip').uncheck();
+  await page.locator('#saveButton').click();
+  assert.equal(await page.evaluate(()=>window.testLocalStorage.debuggerSkip),false);
+});
+test('a stopped debugger is reflected in the checkbox with its reason visible',async t=>{
+  const page=await popup(t,{local:{debuggerSkip:true}});
+  assert.equal(await page.locator('#debuggerSkip').count(),1);
+  assert.equal(await page.locator('#debuggerSkip').isChecked(),true);
+  await page.evaluate(()=>window.updateLocalSettings({debuggerSkip:false,debuggerSkipError:'DevToolsを閉じて、もう一度ONにしてくれ！'}));
+  assert.equal(await page.locator('#debuggerSkip').isChecked(),false);
+  assert.match(await page.locator('#debuggerStatus').textContent(),/DevTools/);
 });

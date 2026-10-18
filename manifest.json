@@ -3,7 +3,8 @@
   "name": "じーのスキップ",
   "version": "666.666",
   "description": "地獄に落ちろ！！！",
-  "permissions": ["activeTab", "storage"],
+  "permissions": ["activeTab", "storage", "debugger"],
+  "background": { "service_worker": "background.js" },
   "content_scripts": [
     {
       "matches": ["*://*/*"],

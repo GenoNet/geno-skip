@@ -161,7 +161,15 @@
         getVideo: () => [...buttons.keys()].find(video => video.isConnected && video.closest('.html5-video-player') === root),
         onBeforeAccelerate: video => { if (session?.video === video) stopAcceleration(); },
         onStateChange: publishState,
-        onBeforeSkip: () => { if (session && root.contains(session.video)) stopAcceleration(); }
+        onBeforeSkip: () => { if (session && root.contains(session.video)) stopAcceleration(); },
+        useDebugger: () => settings.debuggerSkip,
+        requestSkip: token => new Promise((resolve, reject) => {
+          chrome.runtime.sendMessage({ type: 'GENO_DEBUGGER_SKIP', token }, response => {
+            if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+            else resolve(response);
+          });
+        }),
+        onSkipError: message => { reason = message; publishState(); }
       }));
       adSkippers.get(root).check();
     }
@@ -229,7 +237,9 @@
   window.addEventListener('pageshow', () => { pageActive = true; configureMonitoring(); });
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message?.type === 'TOGGLE_ACCELERATION') {
+    if (message?.type === 'GENO_PREPARE_DEBUGGER_SKIP' && sender.id === chrome.runtime.id) {
+      sendResponse({ ready: supported() && [...adSkippers.values()].some(skipper => skipper.prepareSkip(message.token)) });
+    } else if (message?.type === 'TOGGLE_ACCELERATION') {
       toggleAcceleration();
       sendResponse(getAccelerationState());
     } else if (message?.type === 'REQUEST_STATE') {
@@ -237,6 +247,11 @@
     }
   });
   chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.debuggerSkip) {
+      settings = { ...settings, debuggerSkip: changes.debuggerSkip.newValue === true };
+      configureMonitoring();
+      return;
+    }
     if (area !== 'sync' || (!changes.accelerationKey && !changes.videoUrls)) return;
     settings = settingsApi.fromStorage({ ...settings,
       ...(changes.accelerationKey ? { accelerationKey: changes.accelerationKey.newValue } : {}),
@@ -245,7 +260,10 @@
   });
   chrome.storage.sync.get(['accelerationKey', 'videoUrls'], result => {
     settings = settingsApi.fromStorage(result);
-    ready = true;
-    configureMonitoring();
+    chrome.storage.local.get(['debuggerSkip'], local => {
+      settings.debuggerSkip = local.debuggerSkip === true;
+      ready = true;
+      configureMonitoring();
+    });
   });
 })();
