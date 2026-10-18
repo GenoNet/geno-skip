@@ -28,11 +28,13 @@
       clearTimeout(pending.timer);
       if (pending.button.getAttribute('data-geno-debugger-skip') === pending.token) pending.button.removeAttribute('data-geno-debugger-skip');
       pending = null;
+      onStateChange?.();
     }
     function requestDebugSkip(button) {
       const request = { button, token: crypto.randomUUID(), prepared: false };
       pending = request;
       button.setAttribute('data-geno-debugger-skip', request.token);
+      onStateChange?.();
       function finish(response) {
         if (pending !== request) return;
         cancelPending();
@@ -185,6 +187,10 @@
         return true;
       },
       isAccelerating(video) { return !!acceleration && (!video || acceleration.video === video); },
+      isSkipping(video) {
+        const current = acceleration?.video || (pending && getVideo?.());
+        return root.isConnected && root.matches('.ad-showing, .ad-interrupting') && !!current && (!video || current === video);
+      },
       cancelAcceleration() { cancelled = true; stopAcceleration(); },
       destroy() {
         destroyed = true;

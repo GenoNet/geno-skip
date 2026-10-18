@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const defaults = Object.freeze({ accelerationKey: 'S', videoUrls: Object.freeze(['youtube.com', 'nicovideo.jp']) });
+  const defaults = Object.freeze({ accelerationKey: 'S', videoUrls: Object.freeze(['youtube.com', 'nicovideo.jp']), debuggerSkip: true, showSkipEffect: false });
   function normalizeKey(value) {
     if (typeof value !== 'string') return null;
     const key = value.trim().toUpperCase();
@@ -29,7 +29,8 @@
     return {
       accelerationKey: normalizeKey(value.accelerationKey) || defaults.accelerationKey,
       videoUrls: Array.isArray(value.videoUrls) ? parseSites(value.videoUrls).sites : [...defaults.videoUrls],
-      debuggerSkip: value.debuggerSkip === true
+      debuggerSkip: value.debuggerSkip === undefined ? defaults.debuggerSkip : value.debuggerSkip === true,
+      showSkipEffect: value.showSkipEffect === true
     };
   }
   function matches(hostname, sites) {

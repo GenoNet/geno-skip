@@ -51,8 +51,8 @@ test('debugger preparation keeps the ad muted while browser input is pending',as
   assert.deepEqual(await videoState(page),{rate:1.5,volume:1,muted:false});
 });
 
-test('default mode never attaches a debugger when synthetic clicks are ignored', async t => {
-  const { page, calls } = await setup(t, { local: {} });
+test('saved OFF never attaches a debugger when synthetic clicks are ignored', async t => {
+  const { page, calls } = await setup(t, { local: { debuggerSkip: false } });
   await page.locator('.html5-video-player').evaluate(root => root.classList.add('ad-showing'));
   await page.waitForTimeout(650);
   assert.equal(calls.length, 0);
@@ -60,7 +60,7 @@ test('default mode never attaches a debugger when synthetic clicks are ignored',
 });
 
 test('enabling browser input during an ad retries after ignored synthetic clicks', async t => {
-  const { page } = await setup(t, { local: {} });
+  const { page } = await setup(t, { local: { debuggerSkip: false } });
   await page.locator('.html5-video-player').evaluate(root => root.classList.add('ad-showing'));
   await page.waitForFunction(() => window.skipEvents.length >= 3);
   await page.evaluate(() => window.updateLocalSettings({ debuggerSkip: true }));
@@ -68,7 +68,7 @@ test('enabling browser input during an ad retries after ignored synthetic clicks
 });
 
 test('an ignored synthetic click immediately resumes ad acceleration and mute', async t => {
-  const { page } = await setup(t, { local: {} });
+  const { page } = await setup(t, { local: { debuggerSkip: false } });
   await page.locator('.ytp-skip-ad-button').evaluate(button => button.addEventListener('click', () => queueMicrotask(() => {
     const video = document.querySelector('video');
     window.afterIgnoredClick = { rate: video.playbackRate, muted: video.muted };
@@ -76,6 +76,13 @@ test('an ignored synthetic click immediately resumes ad acceleration and mute', 
   await page.locator('.html5-video-player').evaluate(root => root.classList.add('ad-showing'));
   await page.waitForFunction(() => window.afterIgnoredClick);
   assert.deepEqual(await page.evaluate(() => window.afterIgnoredClick), { rate: 16, muted: true });
+});
+
+test('unset debugger preference sends trusted input by default',async t=>{
+  const {page,calls}=await setup(t,{local:{}});
+  await page.locator('.html5-video-player').evaluate(root=>root.classList.add('ad-showing'));
+  await page.waitForFunction(()=>window.skipEvents.some(event=>event.trusted),null,{timeout:4000});
+  assert.equal(calls.filter(call=>call.method==='attach').length,1);
 });
 
 test('an occupied debugger disables retries and leaves the ad accelerated and muted', async t => {

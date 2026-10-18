@@ -7,6 +7,7 @@
     const goButton = document.getElementById('goButton');
     const status = document.getElementById('statusMessage');
     const debuggerInput = document.getElementById('debuggerSkip');
+    const effectInput = document.getElementById('showSkipEffect');
     const debuggerStatus = document.getElementById('debuggerStatus');
     const saveButton = document.getElementById('saveButton');
     let currentTabId = null;
@@ -45,9 +46,11 @@
       const settings = api.fromStorage(result);
       keyInput.value = settings.accelerationKey;
       urlTextarea.value = Array.isArray(result.videoUrls) ? result.videoUrls.filter(value => typeof value === 'string').join('\n') : settings.videoUrls.join('\n');
-      chrome.storage.local.get(['debuggerSkip', 'debuggerSkipError'], local => {
+      chrome.storage.local.get(['debuggerSkip', 'debuggerSkipError', 'showSkipEffect'], local => {
         if (chrome.runtime.lastError) { showStatus('SKIPの設定が読めなかった！もう一回開いてくれ！', true); return; }
-        debuggerInput.checked = local.debuggerSkip === true;
+        const localSettings = api.fromStorage(local);
+        debuggerInput.checked = localSettings.debuggerSkip;
+        effectInput.checked = localSettings.showSkipEffect;
         debuggerStatus.textContent = local.debuggerSkipError || '';
         saveButton.disabled = false;
       });
@@ -58,10 +61,11 @@
       const parsed = api.parseSites(urlTextarea.value);
       if (parsed.invalidLines.length) { showStatus(`サイトの${parsed.invalidLines.join('・')}行目がおかしいぞ！「youtube.com」みたいなサイト名か、http://・https://で始まるURLで頼む！`, true); urlTextarea.focus(); return; }
       const debuggerSkip = debuggerInput.checked;
+      const showSkipEffect = effectInput.checked;
       saveButton.disabled = true;
       chrome.storage.sync.set({ accelerationKey, videoUrls: parsed.sites }, () => {
         if (chrome.runtime.lastError) { saveButton.disabled = false; showStatus('設定を保存できませんでした！ちょっと待って、もう一回頼む！', true); return; }
-        chrome.storage.local.set({ debuggerSkip, debuggerSkipError: '' }, () => {
+        chrome.storage.local.set({ debuggerSkip, showSkipEffect, debuggerSkipError: '' }, () => {
           saveButton.disabled = false;
           if (chrome.runtime.lastError) { showStatus('SKIPの設定を保存できませんでした！もう一回頼む！', true); return; }
           keyInput.value = accelerationKey;
@@ -73,7 +77,8 @@
     });
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== 'local') return;
-      if (changes.debuggerSkip) debuggerInput.checked = changes.debuggerSkip.newValue === true;
+      if (changes.debuggerSkip) debuggerInput.checked = api.fromStorage({ debuggerSkip: changes.debuggerSkip.newValue }).debuggerSkip;
+      if (changes.showSkipEffect) effectInput.checked = changes.showSkipEffect.newValue === true;
       if (changes.debuggerSkipError) debuggerStatus.textContent = changes.debuggerSkipError.newValue || '';
     });
     goButton.addEventListener('click', () => requestState('TOGGLE_ACCELERATION'));

@@ -3,7 +3,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const root = path.resolve(__dirname, '../..');
 
-async function openPage(t, { html = '<video style="width:640px;height:360px"></video>', hostname = 'www.youtube.com', storage = {}, local = {} } = {}) {
+async function openPage(t, { html = '<video style="width:640px;height:360px"></video>', hostname = 'www.youtube.com', storage = {}, local = { debuggerSkip: false } } = {}) {
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE_PATH || '/usr/bin/chromium', headless: true });
   t.after(() => browser.close());
   const page = await browser.newPage();

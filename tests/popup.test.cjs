@@ -57,17 +57,42 @@ test('storage failure is shown and never claimed as saved',async t=>{
   assert.equal(await page.locator('#statusMessage').count(),1);
   assert.match(await page.locator('#statusMessage').textContent(),/保存できません/);
 });
-test('debugger mode defaults off, saves per browser and can be turned off again',async t=>{
+test('debugger mode defaults on, saves per browser and can be turned off again',async t=>{
   const page=await popup(t);
   assert.equal(await page.locator('#debuggerSkip').count(),1);
-  assert.equal(await page.locator('#debuggerSkip').isChecked(),false);
-  await page.locator('#debuggerSkip').check();
+  assert.equal(await page.locator('#debuggerSkip').isChecked(),true);
   await page.locator('#saveButton').click();
   assert.equal(await page.evaluate(()=>window.testLocalStorage.debuggerSkip),true);
   assert.equal(await page.evaluate(()=>window.testStorage.debuggerSkip),undefined);
   await page.locator('#debuggerSkip').uncheck();
   await page.locator('#saveButton').click();
   assert.equal(await page.evaluate(()=>window.testLocalStorage.debuggerSkip),false);
+});
+test('skip effect defaults off, saves locally and has only its requested label',async t=>{
+  const page=await popup(t);
+  assert.equal(await page.locator('#showSkipEffect').count(),1);
+  assert.equal(await page.locator('#showSkipEffect').isChecked(),false);
+  assert.equal((await page.locator('label[for="showSkipEffect"]').textContent()).trim(),'ぶっとばし演出表示');
+  await page.locator('#showSkipEffect').check();
+  await page.locator('#saveButton').click();
+  assert.equal(await page.evaluate(()=>window.testLocalStorage.showSkipEffect),true);
+  assert.equal(await page.evaluate(()=>window.testStorage.showSkipEffect),undefined);
+  assert.equal(await page.locator('#debuggerHelp').count(),0);
+  assert.equal(await page.locator('#saveButton ~ p').count(),0);
+  assert.doesNotMatch(await page.locator('body').textContent(),/顔を押せ！|Chromeのデバッグ権限を使います/);
+});
+test('saved OFF and effect ON are restored when settings are reopened',async t=>{
+  const page=await popup(t,{local:{debuggerSkip:false,showSkipEffect:true}});
+  assert.equal(await page.locator('#debuggerSkip').isChecked(),false);
+  assert.equal(await page.locator('#showSkipEffect').count(),1);
+  assert.equal(await page.locator('#showSkipEffect').isChecked(),true);
+});
+test('the save button fits the initial Chrome popup without scrolling',async t=>{
+  const page=await popup(t);
+  await page.setViewportSize({width:360,height:600});
+  const bounds=await page.locator('#saveButton').boundingBox();
+  assert.ok(bounds.y+bounds.height<=600,JSON.stringify(bounds));
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth),360);
 });
 test('a stopped debugger is reflected in the checkbox with its reason visible',async t=>{
   const page=await popup(t,{local:{debuggerSkip:true}});

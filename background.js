@@ -56,7 +56,7 @@ importScripts('settings.js');
       call(chrome.storage.local, 'get', ['debuggerSkip']),
       call(chrome.storage.sync, 'get', ['videoUrls'])
     ]);
-    if (generation !== settingsGeneration || local.debuggerSkip !== true || !settingsApi.matches(new URL(sender.url).hostname, settingsApi.fromStorage(sync).videoUrls) || jobs.has(sender.tab.id)) return { sent: false };
+    if (generation !== settingsGeneration || !settingsApi.fromStorage(local).debuggerSkip || !settingsApi.matches(new URL(sender.url).hostname, settingsApi.fromStorage(sync).videoUrls) || jobs.has(sender.tab.id)) return { sent: false };
 
     const job = { target: { tabId: sender.tab.id }, attached: false, cancelled: false, pressed: false };
     jobs.set(sender.tab.id, job);
@@ -158,7 +158,7 @@ importScripts('settings.js');
   chrome.storage.onChanged.addListener((changes, area) => {
     if ((area === 'local' && changes.debuggerSkip) || (area === 'sync' && changes.videoUrls)) {
       settingsGeneration++;
-      if (area === 'sync' || changes.debuggerSkip.newValue !== true) {
+      if (area === 'sync' || !settingsApi.fromStorage({ debuggerSkip: changes.debuggerSkip.newValue }).debuggerSkip) {
         for (const job of jobs.values()) job.abort('Cancelled', true);
       }
     }

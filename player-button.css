@@ -118,6 +118,28 @@ button.geno-skip-button:not(.ytp-button):focus-visible { outline: 2px solid #fff
   text-overflow: ellipsis;
 }
 @keyframes geno-skip-spin { to { transform: rotate(360deg); } }
+:where(.geno-skip-effect-host) { position: relative; }
+.geno-skip-effect {
+  position: absolute !important;
+  box-sizing: border-box;
+  aspect-ratio: 1;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  transform: translate(-50%, -50%) !important;
+  z-index: 1000;
+  user-select: none;
+}
+.geno-skip-effect, .geno-skip-effect * { pointer-events: none !important; }
+.geno-skip-effect-face {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-size: 200% 100%;
+  background-position: right center;
+  background-repeat: no-repeat;
+  animation: geno-skip-spin 700ms linear infinite;
+}
 @media (prefers-reduced-motion: reduce) {
-  .geno-skip-button[aria-pressed="true"] .geno-skip-face { animation: none; }
+  .geno-skip-button[aria-pressed="true"] .geno-skip-face, .geno-skip-effect-face { animation: none; }
 }

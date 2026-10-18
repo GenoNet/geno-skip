@@ -6,8 +6,8 @@
   <title>じーのスキップ 設定</title>
   <style>
     * { box-sizing: border-box; }
-    body { width: 360px; margin: 0 auto; padding: 22px; color: #302b25; background: #f8f5ee; font: 14px/1.6 system-ui, sans-serif; }
-    header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+    body { width: 360px; margin: 0 auto; padding: 18px; color: #302b25; background: #f8f5ee; font: 14px/1.6 system-ui, sans-serif; }
+    header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
     h1 { margin: 0; font-size: 19px; letter-spacing: .02em; }
     .caption { margin: 0; color: #766b5b; font-size: 11px; }
     #genoIcon { flex: 0 0 48px; height: 48px; background: url('assets/geno-faces.png') left center / 200% 100% no-repeat; }
@@ -15,17 +15,20 @@
     button { border: 0; border-radius: 10px; font: inherit; font-weight: 700; cursor: pointer; }
     #goButton { margin-left: auto; min-width: 66px; padding: 10px; color: #fff; background: #454b39; }
     #goButton[aria-pressed="true"] { background: #aa4b32; }
-    .setting-group { padding: 15px; margin: 12px 0; border: 1px solid #e7e0d3; border-radius: 13px; background: #fffdf9; }
+    .setting-group { padding: 13px; margin: 10px 0; border: 1px solid #e7e0d3; border-radius: 13px; background: #fffdf9; }
     label { display: block; margin-bottom: 8px; font-weight: 700; }
     input, textarea { width: 100%; padding: 10px; border: 1px solid #cfc6b5; border-radius: 7px; color: #302b25; background: #fff; font: inherit; }
     .toggle { display: flex; align-items: center; gap: 8px; }
     .toggle input { width: 16px; height: 16px; margin: 0; }
-    textarea { min-height: 100px; resize: vertical; font: 12px/1.7 ui-monospace, monospace; }
+    .toggles { display: grid; gap: 12px; }
+    .toggles .toggle { margin: 0; }
+    textarea { min-height: 96px; resize: vertical; font: 12px/1.7 ui-monospace, monospace; }
     .info { margin: 7px 0 0; color: #766b5b; font-size: 11px; }
     #saveButton { width: 100%; padding: 12px; background: #ead5a5; color: #302b25; }
     button:hover { filter: brightness(.95); }
     :focus-visible { outline: 2px solid #9c6a23; outline-offset: 2px; }
-    #statusMessage { min-height: 36px; margin: 12px 0 0; color: #48603b; font-size: 12px; overflow-wrap: anywhere; }
+    #statusMessage { margin: 12px 0; color: #48603b; font-size: 12px; overflow-wrap: anywhere; }
+    #statusMessage:empty, #debuggerStatus:empty { display: none; }
     #statusMessage[data-error="true"] { color: #a13b27; }
     @keyframes geno-popup-spin { to { transform: rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) { #genoIcon.is-active { animation: none; } }
@@ -47,15 +50,13 @@
     <textarea id="videoUrl" spellcheck="false" placeholder="youtube.com&#10;nicovideo.jp" aria-describedby="siteHelp"></textarea>
     <p class="info" id="siteHelp">1行に1サイト。youtube.com なら www.youtube.com もまとめて対象。全部消すと全サイトでお休み。</p>
   </div>
-  <div class="setting-group">
-    <label class="toggle" for="debuggerSkip"><input id="debuggerSkip" type="checkbox" aria-describedby="debuggerHelp">SKIPボタンも実クリックでぶっ飛ばす</label>
-    <p class="info" id="debuggerHelp">普通のクリックが効かないYouTube用。初期設定はOFF。このブラウザだけで有効になります。</p>
-    <p class="info">Chromeのデバッグ権限を使います。「デバッグ中」の表示が出ます。ONにする前にDevToolsを閉じてくれ！</p>
+  <div class="setting-group toggles">
+    <label class="toggle" for="debuggerSkip"><input id="debuggerSkip" type="checkbox">SKIPボタンも実クリックでぶっ飛ばす</label>
+    <label class="toggle" for="showSkipEffect"><input id="showSkipEffect" type="checkbox">ぶっとばし演出表示</label>
     <p class="info" id="debuggerStatus" role="status" aria-live="polite"></p>
   </div>
-  <button id="saveButton" type="button">設定を保存</button>
-  <p class="info">顔を押せ！16倍速でぶっ飛ばすぞ！もう一度押すか、3秒たつと正気に戻ります。</p>
   <p id="statusMessage" role="status" aria-live="polite"></p>
+  <button id="saveButton" type="button">設定を保存</button>
   <script src="settings.js"></script>
   <script src="popup.js"></script>
 </body>

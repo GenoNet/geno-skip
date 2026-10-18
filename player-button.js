@@ -143,6 +143,46 @@
     return anchor;
   }
 
+  function createAdEffect(root, video) {
+    let effect = null, positioned = false, destroyed = false;
+    function remove() {
+      effect?.remove();
+      effect = null;
+      if (positioned) root.classList.remove('geno-skip-effect-host');
+      positioned = false;
+    }
+    return {
+      setVisible(visible) {
+        if (destroyed || !visible || !video.isConnected || !root.isConnected) { remove(); return; }
+        if (!effect) {
+          positioned = getComputedStyle(root).position === 'static';
+          if (positioned) root.classList.add('geno-skip-effect-host');
+          effect = document.createElement('div');
+          effect.className = 'geno-skip-effect';
+          effect.setAttribute('aria-hidden', 'true');
+          const face = document.createElement('span');
+          face.className = 'geno-skip-effect-face';
+          effect.append(face);
+          root.append(effect);
+          loadFaceSource().then(source => {
+            if (face.isConnected) face.style.backgroundImage = `url("${source}")`;
+          }).catch(error => console.warn('じーのの顔が読めなかったぞ！', error.message));
+        }
+        const parent = root.getBoundingClientRect(), media = video.getBoundingClientRect();
+        const scaleX = parent.width / root.offsetWidth || 1, scaleY = parent.height / root.offsetHeight || 1;
+        const values = {
+          left: `${(media.left + media.width / 2 - parent.left) / scaleX - root.clientLeft + root.scrollLeft}px`,
+          top: `${(media.top + media.height / 2 - parent.top) / scaleY - root.clientTop + root.scrollTop}px`,
+          width: `${Math.max(0, Math.min(192, media.width / scaleX * .4, media.height / scaleY * .5))}px`
+        };
+        for (const [property, value] of Object.entries(values)) {
+          if (effect.style[property] !== value) effect.style[property] = value;
+        }
+      },
+      destroy() { destroyed = true; remove(); }
+    };
+  }
+
   function mount({ root, video, onToggle, accelerationKey = 'S' }) {
     const controls = controlsFor(root);
     const anchor = controls ? null : dockAnchor(video, root);
@@ -190,6 +230,7 @@
       anchor.after(dock);
     }
     const tooltip = createTooltip(button, controls ? root : dock, !!controls);
+    const effect = createAdEffect(root, video);
     // The renderer only sees embedded PNG data, never a cross-origin extension URL.
     loadFaceSource().then(source => {
       if (face.isConnected) face.style.backgroundImage = `url("${source}")`;
@@ -210,7 +251,9 @@
         updateLabel();
       },
       setShortcut(value) { shortcut = value; updateLabel(); },
+      setAdEffect(active) { effect.setVisible(active); },
       destroy() {
+        effect.destroy();
         tooltip.destroy();
         button.remove();
         dock?.remove();

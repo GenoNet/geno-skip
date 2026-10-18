@@ -21,8 +21,13 @@
   const videoIsActive = video => session?.video === video || !!adAccelerationFor(video);
   const getAccelerationState = () => ({ isActive: !!session || !!adAccelerationFor(), ...(reason ? { reason } : {}) });
 
+  function updateButton(video, button) {
+    button.setActive(videoIsActive(video));
+    button.setAdEffect(settings.showSkipEffect && [...adSkippers.values()].some(skipper => skipper.isSkipping(video)));
+  }
+
   function publishState() {
-    for (const [video, button] of buttons) button.setActive(videoIsActive(video));
+    for (const [video, button] of buttons) updateButton(video, button);
     try {
       chrome.runtime.sendMessage({ type: 'ACCEL_STATE', ...getAccelerationState() }, () => { void chrome.runtime.lastError; });
     } catch { /* Extension may have been reloaded while the tab stayed open. */ }
@@ -160,7 +165,7 @@
     for (const { root, video } of players.values()) {
       const button = globalThis.GenoPlayerButtons.mount({ root, video, onToggle: () => toggleAcceleration(video), accelerationKey: settings.accelerationKey });
       buttons.set(video, button);
-      button.setActive(videoIsActive(video));
+      updateButton(video, button);
     }
     configureAdSkipping();
   }
@@ -263,8 +268,10 @@
     }
   });
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.debuggerSkip) {
-      settings = { ...settings, debuggerSkip: changes.debuggerSkip.newValue === true };
+    if (area === 'local' && (changes.debuggerSkip || changes.showSkipEffect)) {
+      settings = settingsApi.fromStorage({ ...settings,
+        ...(changes.debuggerSkip ? { debuggerSkip: changes.debuggerSkip.newValue } : {}),
+        ...(changes.showSkipEffect ? { showSkipEffect: changes.showSkipEffect.newValue } : {}) });
       configureMonitoring();
       return;
     }
@@ -276,8 +283,10 @@
   });
   chrome.storage.sync.get(['accelerationKey', 'videoUrls'], result => {
     settings = settingsApi.fromStorage(result);
-    chrome.storage.local.get(['debuggerSkip'], local => {
-      settings.debuggerSkip = local.debuggerSkip === true;
+    chrome.storage.local.get(['debuggerSkip', 'showSkipEffect'], local => {
+      const localSettings = settingsApi.fromStorage(local);
+      settings.debuggerSkip = localSettings.debuggerSkip;
+      settings.showSkipEffect = localSettings.showSkipEffect;
       ready = true;
       configureMonitoring();
     });
