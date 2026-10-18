@@ -1,6 +1,6 @@
 # Geno Skip プレーヤーボタン改善 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 動画プレーヤー下部の geno ちゃんの顔ボタンから加速できるようにし、既存のキー・ポップアップ操作と状態復元の信頼性を改善する。
 
@@ -47,7 +47,7 @@
 - 1文書につき同時に加速する動画は1つ。別プレーヤーのボタンで開始する場合は、先に元の動画を復元する。背景のプレビュー動画は一括加速しない。
 - 開始時の `playbackRate`、`volume`、`muted` を保存し、解除時にそのまま戻す。0音量、開始前からミュート、1.5倍速なども保持する。
 - 全解除経路を `stopAcceleration(reason)` に集約し、タイマー解除、復元、状態通知、顔ボタン表示更新を必ず一緒に行う。
-- 既存のページクリック解除を維持する。ただし顔ボタン自身のクリックで即解除しない。キー長押し・IME変換中・修飾キー併用・入力欄・編集可能要素では加速キーを無視する。
+- 既存のページクリック解除を維持する。ただし顔ボタン自身のクリックで即解除しない。キー長押し・IME変換中・Ctrl/Alt/Meta併用・Shift英字・入力欄・編集可能要素では加速キーを無視する。Shiftで入力する記号キーは設定可能にする。
 - 動画終了・削除・別ソースへの切替・対象サイト無効化では解除する。プレーヤー再生成後の新動画には自動で加速を引き継がない。
 - 動画なし／速度設定拒否では有効状態にせず、ポップアップに理由を返す。
 
@@ -93,25 +93,25 @@
 
 **Interfaces:** `startAcceleration(video: HTMLVideoElement): boolean`、`stopAcceleration(reason: string): void`、`toggleAcceleration(video?: HTMLVideoElement): void`、`getAccelerationState(): { isActive: boolean, reason?: string }`。`content.js` 内で管理し、状態通知は既存 `ACCEL_STATE` を使う。
 
-- [ ] `node:test` と `playwright-core@1.57.0` のテスト環境を用意する。`npm test` はローカルChromiumを使い、`CHROMIUM_EXECUTABLE_PATH` で指定可能にする。Chrome APIだけを代替し、実際のDOMと動画要素で検証する。
-- [ ] 開始速度1.5・音量0・ミュートtrueの動画が、加速中は16倍速、解除後は元の値になる失敗テストを書く。
-- [ ] 3,000ms自動解除、手動解除直後の再開始、対象動画削除、速度代入拒否、動画なし、複数動画の選択テストを加え、現行コードで失敗することを確認する。
-- [ ] 上記インターフェースと単一セッションを実装する。解除はタイマー・クリック・再クリック・動画ライフサイクルで共通化する。
-- [ ] キーのrepeat・isComposing・修飾キー・入れ子のcontenteditableを除外するテストと修正を加える。
-- [ ] `node --test tests/content.test.cjs` が全件通ることを確認し、変更をコミットする。
+- [x] `node:test` と `playwright-core@1.57.0` のテスト環境を用意する。`npm test` はローカルChromiumを使い、`CHROMIUM_EXECUTABLE_PATH` で指定可能にする。Chrome APIだけを代替し、実際のDOMと動画要素で検証する。
+- [x] 開始速度1.5・音量0・ミュートtrueの動画が、加速中は16倍速、解除後は元の値になる失敗テストを書く。
+- [x] 3,000ms自動解除、手動解除直後の再開始、対象動画削除、速度代入拒否、動画なし、複数動画の選択テストを加え、現行コードで失敗することを確認する。
+- [x] 上記インターフェースと単一セッションを実装する。解除はタイマー・クリック・再クリック・動画ライフサイクルで共通化する。
+- [x] キーのrepeat・isComposing・修飾キー・入れ子のcontenteditableを除外するテストと修正を加える。
+- [x] `node --test tests/content.test.cjs` が全件通ることを確認し、変更をコミットする。
 
 ## Task 2: 顔ボタンの追加とプレーヤー追従
 
-**Files:** Create `player-button.js`, `player-button.css`, `assets/geno-face.png`, `tests/player-button.test.cjs`; Modify `content.js`, `manifest.json`。
+**Files:** Create `player-button.js`, `player-button.css`, `assets/geno-faces.png`, `tests/player-button.test.cjs`; Modify `content.js`, `manifest.json`。
 
 **Interfaces:** `GenoPlayerButtons.mount({root: Element, video: HTMLVideoElement, onToggle: () => void}): { setActive(active: boolean): void, destroy(): void }`。`mount` は同じプレーヤーに対して重複せず、YouTubeの操作列または汎用の動画直下を選ぶ。Task 1の `toggleAcceleration(video)` を呼ぶ。
 
-- [ ] YouTube相当のDOMで、右操作列・代替操作列・遅延生成・コントロール交換・汎用動画直下に各1個設置される失敗テストを書く。他拡張ボタンが残ることも確認する。
-- [ ] 顔ボタンの実クリックで16倍速が維持され、再クリックで元に戻ること、Enter/Space操作、`aria-pressed` と状態表示の同期をテストする。
-- [ ] 添付画像を取り込み、専用クラスのCSSと `GenoPlayerButtons` を実装する。YouTubeの操作列を優先し、コントロールを作り直した際に古いリスナーを破棄する。
-- [ ] `manifest.json` に `player-button.js` → `content.js` の読み込み順とCSSを登録する。顔画像だけを必要なHTTP(S)ページへ `web_accessible_resources` で公開し、他の内部ファイルを公開しない。
-- [ ] `yt-navigate-finish`、対象動画のライフサイクル、限定したDOM監視を接続する。自身のUI更新による監視ループを防ぐ。
-- [ ] `node --test tests/player-button.test.cjs` が通り、通常・シアター・全画面相当のDOMで画像が欠けずに見えることを確認してコミットする。
+- [x] YouTube相当のDOMで、右操作列・代替操作列・遅延生成・コントロール交換・汎用動画直下に各1個設置される失敗テストを書く。他拡張ボタンが残ることも確認する。
+- [x] 顔ボタンの実クリックで16倍速が維持され、再クリックで元に戻ること、Enter/Space操作、`aria-pressed` と状態表示の同期をテストする。
+- [x] 添付画像を取り込み、専用クラスのCSSと `GenoPlayerButtons` を実装する。YouTubeの操作列を優先し、コントロールを作り直した際に古いリスナーを破棄する。
+- [x] `manifest.json` に `settings.js` → `player-button.js` → `content.js` の読み込み順とCSSを登録する。顔画像だけを必要なHTTP(S)ページへ `web_accessible_resources` で公開し、他の内部ファイルを公開しない。
+- [x] `yt-navigate-finish`、対象動画のライフサイクル、限定したDOM監視を接続する。自身のUI更新による監視ループを防ぐ。
+- [x] `node --test tests/player-button.test.cjs` が通り、通常・シアター・全画面相当のDOMで画像が欠けずに見えることを確認してコミットする。
 
 ## Task 3: 設定即時反映とポップアップ同期
 
@@ -119,23 +119,23 @@
 
 **Interfaces:** 既存 `TOGGLE_ACCELERATION` / `REQUEST_STATE` の応答 `{ isActive }` を保ち、操作不能時は追加の `reason` を返す。`chrome.storage.onChanged` の設定更新が顔ボタン・キー・ポップアップに反映される。
 
-- [ ] 正規ドメインとサブドメインは有効、`notyoutube.com` / `youtube.com.evil.test` は無効、URL入力はホストへ正規化、無効行は行番号表示、空一覧は対象なしになる失敗テストを書く。
-- [ ] 保存済み設定の読込、壊れた値、設定変更時の即時反映、対象除外時の解除をテストして修正する。
-- [ ] 動画なし・非対応サイト・`chrome://` ページ・受信先なしの応答をテストする。`chrome.runtime.lastError` を処理し、ポップアップに短い日本語メッセージを表示する。
-- [ ] 現在のタブIDを取得し、別タブの `ACCEL_STATE` を無視するテストと修正を加える。タイマー解除・クリック解除で顔ボタンと Go!/Stop! が揃うことを確認する。
-- [ ] 未使用権限を整理する。`activeTab` と `storage` で必要操作が行えるかをAPI仕様と実拡張検証で確認し、必要な権限のみ残す。
-- [ ] `node --test tests/settings.test.cjs tests/popup.test.cjs` と既存テストが通ることを確認してコミットする。
+- [x] 正規ドメインとサブドメインは有効、`notyoutube.com` / `youtube.com.evil.test` は無効、URL入力はホストへ正規化、無効行は行番号表示、空一覧は対象なしになる失敗テストを書く。
+- [x] 保存済み設定の読込、壊れた値、設定変更時の即時反映、対象除外時の解除をテストして修正する。
+- [x] 動画なし・非対応サイト・`chrome://` ページ・受信先なしの応答をテストする。`chrome.runtime.lastError` を処理し、ポップアップに短い日本語メッセージを表示する。
+- [x] 現在のタブIDを取得し、別タブの `ACCEL_STATE` を無視するテストと修正を加える。タイマー解除・クリック解除で顔ボタンと Go!/Stop! が揃うことを確認する。
+- [ ] 未使用権限を整理する（削除済み、実拡張での最終確認は環境制限により未実施）。`activeTab` と `storage` で必要操作が行えるかをAPI仕様と実拡張検証で確認し、必要な権限のみ残す。
+- [x] `node --test tests/settings.test.cjs tests/popup.test.cjs` と既存テストが通ることを確認してコミットする。
 
 ## Task 4: 統合検証と使い方の更新
 
 **Files:** Modify `README.md`; Create `tests/integration.test.cjs`, `tests/manifest.test.cjs`。
 
-- [ ] ローカルページで「顔ボタン開始 → ポップアップ状態取得 → 3秒後解除」「キー開始 → 顔ボタン解除」「設定変更 → 別動画へのSPA遷移」をテストする。
-- [ ] 無関係DOMの更新をまとめて発生させてもボタンが1個であること、動画削除後に状態が解除されること、対象外サイトではボタン・動画監視が動かないことを検証する。時間計測による不安定な速度判定は使わない。
-- [ ] manifestから参照するJS・CSS・画像が存在し、読み込み順と公開リソースが仕様どおりであることをテストする。
-- [ ] `npm ci`、`npm test`、`node --check content.js`、`node --check player-button.js`、`node --check popup.js` を実行し、実行件数と結果を記録する。
-- [ ] 実拡張を読み込める承認済みブラウザーが利用できれば、YouTubeの通常・シアター・全画面・連続遷移とニコニコ、設定保存、背景タブとの分離を手動確認する。提供されていなければ実機確認を未実施として残し、API代替テストの合格と区別する。
-- [ ] READMEを顔ボタン・元の速度への復帰・設定即時反映・テスト手順に合わせ、全差分を確認してコミットする。
+- [x] ローカルページで「顔ボタン開始 → ポップアップ状態取得 → 3秒後解除」「キー開始 → 顔ボタン解除」「設定変更 → 別動画へのSPA遷移」をテストする。
+- [x] 無関係DOMの更新をまとめて発生させてもボタンが1個であること、動画削除後に状態が解除されること、対象外サイトではボタン・動画監視が動かないことを検証する。時間計測による不安定な速度判定は使わない。
+- [x] manifestから参照するJS・CSS・画像が存在し、読み込み順と公開リソースが仕様どおりであることをテストする。
+- [x] `npm ci`、`npm test`、`node --check content.js`、`node --check player-button.js`、`node --check popup.js` を実行し、実行件数と結果を記録する。
+- [ ] 実サイトでの確認は環境制限により未実施。実拡張を読み込める承認済みブラウザーが利用できれば、YouTubeの通常・シアター・全画面・連続遷移とニコニコ、設定保存、背景タブとの分離を手動確認する。提供されていなければ実機確認を未実施として残し、API代替テストの合格と区別する。
+- [x] READMEを顔ボタン・元の速度への復帰・設定即時反映・テスト手順に合わせ、全差分を確認してコミットする。
 
 ## 現在の検証制約と完了条件
 
@@ -145,4 +145,4 @@
 
 ## 実装順とレビュー
 
-Task 1 → Task 2 → Task 3 → Task 4 の順に、このセッションで実装する方法を推奨する。小さな既存拡張で同じ状態管理に依存するため、作業の引き継ぎを増やさず進められる。まず本計画の仕様をレビューしてから実装に移る。
+Task 1 → Task 2 → Task 3 → Task 4 の順に、このセッションで実装する方法を推奨する。小さな既存拡張で同じ状態管理に依存するため、作業の引き継ぎを増やさず進められる。ユーザーの実装指示に基づき実装済み。実施結果と判断は [レビュー記録](2026-10-18-geno-player-button-review.md) を参照。

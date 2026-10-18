@@ -11,10 +11,32 @@
     return last && !last.matches('button, .geno-skip-dock') ? last : controls;
   }
 
+  function dockAnchor(video, root) {
+    let anchor = video;
+    if (['absolute', 'fixed'].includes(getComputedStyle(video).position)) {
+      let container = video.parentElement;
+      while (container && container !== document.body) {
+        const style = getComputedStyle(container);
+        if (style.position !== 'static' || style.transform !== 'none') break;
+        container = container.parentElement;
+      }
+      if (container && container !== document.body) anchor = container;
+      else if (root !== document.body) anchor = root;
+    }
+    // Put the row outside a player that would clip everything below the video.
+    for (let parent = anchor.parentElement; parent && parent !== document.body; parent = parent.parentElement) {
+      if (['hidden', 'clip', 'auto', 'scroll'].includes(getComputedStyle(parent).overflowY) &&
+          parent.getBoundingClientRect().bottom < video.getBoundingClientRect().bottom + 40) anchor = parent;
+      else break;
+    }
+    return anchor;
+  }
+
   function mount({ root, video, onToggle }) {
     const controls = controlsFor(root);
+    const anchor = controls ? null : dockAnchor(video, root);
     const previous = mounted.get(video);
-    if (previous?.button.isConnected && (controls ? previous.button.parentElement === controls : previous.dock?.previousElementSibling === video)) return previous;
+    if (previous?.button.isConnected && (controls ? previous.button.parentElement === controls : previous.dock?.previousElementSibling === anchor)) return previous;
     previous?.destroy();
 
     const button = document.createElement('button');
@@ -40,7 +62,7 @@
       dock = document.createElement('div');
       dock.className = 'geno-skip-dock';
       dock.append(button);
-      video.after(dock);
+      anchor.after(dock);
     }
     const handle = {
       button, dock,

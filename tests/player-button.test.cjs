@@ -39,11 +39,25 @@ test('control replacement and SPA navigation create one button without removing 
   const page=await openPage(t,{html:youtube});
   await loadContent(page);
   assert.equal(await page.locator('.geno-skip-button').count(),1);
-  await page.evaluate(()=>{document.querySelector('.ytp-right-controls').innerHTML='<button class="ytp-settings-button">Settings</button>';document.dispatchEvent(new Event('yt-navigate-finish'));});
+  await page.evaluate(()=>{document.querySelector('.ytp-right-controls').innerHTML='<button class="ytp-settings-button">Settings</button>';});
   await page.waitForFunction(()=>document.querySelectorAll('.ytp-right-controls .geno-skip-button').length===1);
   await page.evaluate(()=>{for(let i=0;i<200;i++) document.body.append(document.createElement('span'));document.dispatchEvent(new Event('yt-navigate-finish'));});
   await page.waitForTimeout(50);
   assert.equal(await page.locator('.geno-skip-button').count(),1);
+});
+
+test('positioned custom players keep their fallback control visible and clickable',async t=>{
+  const page=await openPage(t,{hostname:'www.nicovideo.jp',html:'<div style="position:relative;width:640px;height:360px;overflow:hidden"><video style="position:absolute;inset:0;width:100%;height:100%;z-index:1;background:black"></video></div>'});
+  await loadContent(page);
+  const visible=await page.locator('.geno-skip-button').evaluate(button=>{
+    const r=button.getBoundingClientRect();
+    const hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
+    const v=document.querySelector('video').getBoundingClientRect();
+    return {clickable:button.contains(hit),nearBottom:r.bottom>=v.bottom-12};
+  });
+  assert.deepEqual(visible,{clickable:true,nearBottom:true});
+  await page.locator('.geno-skip-button').click();
+  assert.equal((await videoState(page)).rate,16);
 });
 
 test('fallback buttons operate their own video and switch sessions safely',async t=>{
@@ -66,4 +80,21 @@ test('new controls replace generic dock and disabling site removes buttons',asyn
   assert.equal(await page.locator('.geno-skip-dock').count(),0);
   await page.evaluate(()=>window.updateSettings({videoUrls:[]}));
   assert.equal(await page.locator('.geno-skip-button').count(),0);
+});
+
+test('native control stays in a fullscreen player and respects reduced motion',async t=>{
+  const page=await openPage(t,{html:youtube});
+  await loadContent(page);
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.locator('.html5-video-player').evaluate(root=>{
+    const trigger=document.createElement('button');trigger.id='fullscreen';trigger.textContent='Fullscreen';
+    trigger.onclick=()=>root.requestFullscreen();root.append(trigger);
+  });
+  await page.locator('#fullscreen').click();
+  await page.waitForFunction(()=>document.fullscreenElement);
+  assert.equal(await page.locator(':fullscreen .geno-skip-button').count(),1);
+  await page.locator('.geno-skip-button').click();
+  assert.equal((await videoState(page)).rate,16);
+  assert.equal(await page.locator('.geno-skip-face').evaluate(e=>getComputedStyle(e).animationName),'none');
+  assert.equal(await page.locator('.geno-skip-button').getAttribute('aria-pressed'),'true');
 });

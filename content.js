@@ -7,6 +7,9 @@
   let timer = null;
   let reason = '';
   let observer = null;
+  let resizeObserver = null;
+  let appearanceObserver = null;
+  const observedVideos = new Set();
   let refreshFrame = null;
   const buttons = new Map();
   const lifecycleEvents = ['ended', 'emptied', 'loadstart'];
@@ -103,8 +106,20 @@
     if (!supported()) return;
     if (session && !session.video.isConnected) stopAcceleration();
     if (!globalThis.GenoPlayerButtons) return;
+    const videos = [...document.querySelectorAll('video')];
+    for (const video of observedVideos) {
+      if (!video.isConnected) { resizeObserver?.unobserve(video); observedVideos.delete(video); }
+    }
+    appearanceObserver?.disconnect();
+    const appearanceTargets = new Set();
+    for (const video of videos) {
+      if (!observedVideos.has(video)) { resizeObserver?.observe(video); observedVideos.add(video); }
+      // Observe only ancestors of videos, rather than every page attribute change.
+      for (let element = video; element; element = element.parentElement) appearanceTargets.add(element);
+    }
+    for (const element of appearanceTargets) appearanceObserver?.observe(element, { attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
     const players = new Map();
-    for (const video of document.querySelectorAll('video')) {
+    for (const video of videos) {
       const area = layoutArea(video);
       if (area <= 0) continue;
       const root = video.closest('.html5-video-player') || video.parentElement;
@@ -139,6 +154,9 @@
   function configureMonitoring() {
     if (!supported()) {
       observer?.disconnect(); observer = null;
+      resizeObserver?.disconnect(); resizeObserver = null;
+      appearanceObserver?.disconnect(); appearanceObserver = null;
+      observedVideos.clear();
       if (refreshFrame !== null) cancelAnimationFrame(refreshFrame);
       refreshFrame = null;
       stopAcceleration();
@@ -149,15 +167,22 @@
     if (!observer) {
       observer = new MutationObserver(records => {
         if (session && !session.video.isConnected) stopAcceleration();
-        if (records.some(record => [...record.addedNodes, ...record.removedNodes].some(relevantNode))) scheduleRefresh();
+        const lostButton = records.some(record => [...record.removedNodes].some(node =>
+          node.nodeType === Node.ELEMENT_NODE &&
+          (node.matches('.geno-skip-button') || node.querySelector('.geno-skip-button'))));
+        if (lostButton || records.some(record => [...record.addedNodes, ...record.removedNodes].some(relevantNode))) scheduleRefresh();
       });
       observer.observe(document.body, { childList: true, subtree: true });
+      resizeObserver = new ResizeObserver(scheduleRefresh);
+      appearanceObserver = new MutationObserver(scheduleRefresh);
     }
     refreshButtons();
   }
 
   document.addEventListener('keydown', event => {
-    if (!supported() || event.repeat || event.isComposing || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+    if (!supported() || event.repeat || event.isComposing || event.ctrlKey || event.altKey || event.metaKey) return;
+    // Shift is needed to type punctuation shortcuts (e.g. !), but not alphabetic ones.
+    if (event.shiftKey && event.key.toLowerCase() !== event.key.toUpperCase()) return;
     const target = event.composedPath()[0];
     if (target instanceof Element && (target.closest('input, textarea, select, [role="textbox"]') || target.isContentEditable)) return;
     if (event.key.toUpperCase() === settings.accelerationKey) { event.preventDefault(); toggleAcceleration(); }

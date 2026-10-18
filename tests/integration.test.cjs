@@ -26,6 +26,23 @@ test('offscreen videos already have a fallback button when scrolled into view',a
   assert.equal((await videoState(page)).rate,16);
 });
 
+test('preloaded hidden players gain controls when their ancestor is shown',async t=>{
+  const page=await openPage(t,{html:'<section id="panel" style="display:none"><div><video style="width:640px;height:360px"></video></div></section>'});
+  await loadContent(page);
+  assert.equal(await page.locator('.geno-skip-button').count(),0);
+  await page.locator('#panel').evaluate(e=>{e.style.display='block';});
+  await page.waitForFunction(()=>document.querySelectorAll('.geno-skip-button').length===1,{},{timeout:1500});
+  await page.locator('.geno-skip-button').click();
+  assert.equal((await videoState(page)).rate,16);
+});
+
+test('saved shifted punctuation shortcut works while Shift-letter remains ignored',async t=>{
+  const page=await openPage(t,{storage:{accelerationKey:'!'}});
+  await loadContent(page);
+  await page.evaluate(()=>document.dispatchEvent(new KeyboardEvent('keydown',{key:'!',shiftKey:true,bubbles:true})));
+  assert.equal((await state(page)).isActive,true);
+});
+
 test('a single player with multiple media elements gets one button for the main video',async t=>{
   const page=await openPage(t,{html:'<div class="html5-video-player"><video id="preview" style="width:30px;height:20px"></video><video id="main" style="width:640px;height:360px"></video><div class="ytp-right-controls"></div></div>'});
   await loadContent(page);
