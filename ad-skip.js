@@ -21,23 +21,29 @@
       if (!acceleration) return;
       const saved = acceleration;
       acceleration = null;
-      try { saved.video.playbackRate = saved.rate; } catch { /* A detached player may reject restoration. */ }
+      for (const [property, value] of [['playbackRate', saved.rate], ['muted', saved.muted]]) {
+        try { saved.video[property] = value; } catch { /* Keep restoring the other property if one fails. */ }
+      }
       onStateChange?.();
     }
     function accelerate() {
       const video = getVideo?.();
       if (acceleration?.video !== video) stopAcceleration();
       if (cancelled || !video?.isConnected || rejected.has(video)) return;
-      if (acceleration && video.playbackRate === 16) return;
+      if (acceleration && video.playbackRate === 16 && video.muted) return;
       if (!acceleration) {
         onBeforeAccelerate?.(video);
-        acceleration = { video, rate: video.playbackRate, attempts: 0 };
+        acceleration = { video, rate: video.playbackRate, muted: video.muted, attempts: 0 };
       }
-      if (acceleration.attempts >= maxAttempts) { rejected.add(video); stopAcceleration(); return; }
-      acceleration.attempts++;
       try {
-        video.playbackRate = 16;
-        if (video.playbackRate !== 16) throw new Error('Rate rejected');
+        if (video.playbackRate !== 16) {
+          if (acceleration.attempts >= maxAttempts) throw new Error('Rate repeatedly reset');
+          acceleration.attempts++;
+          video.playbackRate = 16;
+          if (video.playbackRate !== 16) throw new Error('Rate rejected');
+        }
+        video.muted = true;
+        if (!video.muted) throw new Error('Mute rejected');
         onStateChange?.();
       } catch {
         rejected.add(video);

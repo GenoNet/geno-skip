@@ -130,7 +130,7 @@
     const anchor = controls ? null : dockAnchor(video, root);
     const previous = mounted.get(video);
     if (previous?.button.isConnected && (controls ? previous.button.parentElement === controls : previous.dock?.previousElementSibling === anchor)) {
-      if (controls) syncNativeControl(controls, previous.button, previous.button.querySelector('.geno-skip-face'));
+      if (controls) syncNativeControl(controls, previous.button, previous.button.querySelector('.geno-skip-native-marker'));
       previous.setShortcut(accelerationKey);
       return previous;
     }
@@ -139,16 +139,21 @@
     const button = document.createElement('button');
     button.type = 'button';
     button.className = `geno-skip-button${controls ? ' ytp-button' : ''}`;
-    const face = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    face.setAttribute('class', 'geno-skip-face');
-    face.setAttribute('viewBox', '0 0 36 36');
-    face.setAttribute('focusable', 'false');
+    const face = document.createElement('span');
+    face.className = 'geno-skip-face';
     face.setAttribute('aria-hidden', 'true');
+    // Paint on HTML: SVG applies same-origin restrictions to extension image URLs.
     face.style.backgroundImage = `url("${chrome.runtime.getURL('assets/geno-faces.png')}")`;
+    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    marker.setAttribute('class', 'geno-skip-native-marker');
+    marker.setAttribute('viewBox', '0 0 36 36');
+    marker.setAttribute('focusable', 'false');
+    marker.setAttribute('aria-hidden', 'true');
     const icon = document.createElement('span');
     icon.className = 'geno-skip-icon';
     icon.setAttribute('aria-hidden', 'true');
-    icon.append(face);
+    // Keep YouTube's viewBox-based hover rules without loading an image in SVG.
+    icon.append(marker, face);
     const badge = document.createElement('span');
     badge.className = 'geno-skip-badge';
     badge.textContent = '16×';
@@ -161,7 +166,7 @@
     let dock = null;
     if (controls) {
       controls.prepend(button);
-      syncNativeControl(controls, button, face);
+      syncNativeControl(controls, button, marker);
     } else {
       dock = document.createElement('div');
       dock.className = 'geno-skip-dock';

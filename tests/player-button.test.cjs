@@ -10,6 +10,25 @@ test('Geno precedes every other button in the controls group',async t=>{
   assert.equal(await page.locator('#other').count(),1);
 });
 
+test('face resources are painted on HTML outside SVG resource loading',async t=>{
+  const page=await openPage(t,{html:youtube});
+  await loadContent(page);
+  const painting=await page.locator('.geno-skip-button').evaluate(button=>{
+    const face=button.querySelector('.geno-skip-face');
+    return {html:face.namespaceURI==='http://www.w3.org/1999/xhtml',outsideSvg:face.closest('svg')===null,
+      source:getComputedStyle(face).backgroundImage,svgUsesImage:[...button.querySelectorAll('svg')].some(svg=>getComputedStyle(svg).backgroundImage!=='none' || svg.querySelector('image, use'))};
+  });
+  assert.equal(painting.html,true);
+  assert.equal(painting.outsideSvg,true);
+  assert.match(painting.source,/assets\/geno-faces\.png/);
+  assert.equal(painting.svgUsesImage,false);
+  const size=await page.locator('.geno-skip-face').evaluate(async face=>{
+    const image=new Image();image.src=getComputedStyle(face).backgroundImage.slice(5,-2);await image.decode();
+    return {width:image.naturalWidth,height:image.naturalHeight};
+  });
+  assert.deepEqual(size,{width:1774,height:887});
+});
+
 test('face remains centered when native player styles change the button display',async t=>{
   const page=await openPage(t,{html:youtube});
   await loadContent(page);

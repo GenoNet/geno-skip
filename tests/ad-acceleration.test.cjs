@@ -2,10 +2,10 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {openPage,loadContent,state,videoState}=require('./helpers/browser.cjs');
 const player=(ad=false)=>`<div class="html5-video-player${ad?' ad-showing':''}"><video style="width:640px;height:360px"></video><div class="ytp-right-controls"></div></div>`;
-async function setup(t,{ad=false,hostname='www.youtube.com',storage={}}={}) {
+async function setup(t,{ad=false,hostname='www.youtube.com',storage={},muted=false,volume=.4}={}) {
   const page=await openPage(t,{html:player(ad),hostname,storage});
   await page.clock.install();
-  await page.locator('video').evaluate(video=>{video.playbackRate=1.5;video.volume=.4;video.muted=false;});
+  await page.locator('video').evaluate((video,audio)=>{video.playbackRate=1.5;video.volume=audio.volume;video.muted=audio.muted;},{muted,volume});
   await loadContent(page);
   return page;
 }
@@ -14,10 +14,10 @@ async function setAd(page,active) {
   await page.clock.runFor(50);
 }
 
-test('automatically accelerates the whole ad and restores the original speed without changing audio',async t=>{
+test('automatically accelerates and mutes the whole ad, then restores speed and audio',async t=>{
   const page=await setup(t);
   await setAd(page,true);
-  assert.deepEqual(await videoState(page),{rate:16,volume:.4,muted:false});
+  assert.deepEqual(await videoState(page),{rate:16,volume:.4,muted:true});
   assert.equal((await state(page)).isActive,true);
   assert.equal(await page.locator('.geno-skip-button').getAttribute('aria-pressed'),'true');
   await page.clock.runFor(4500);
@@ -56,7 +56,7 @@ test('restores the manual session before automatically accelerating an ad',async
   await page.keyboard.press('s');
   assert.equal((await videoState(page)).muted,true);
   await setAd(page,true);
-  assert.deepEqual(await videoState(page),{rate:16,volume:.4,muted:false});
+  assert.deepEqual(await videoState(page),{rate:16,volume:.4,muted:true});
   await page.clock.runFor(3500);
   assert.equal((await videoState(page)).rate,16);
   await setAd(page,false);
@@ -87,11 +87,29 @@ test('clicking Geno cancels automatic acceleration for the rest of the current a
 test('a new ad media load can reset the rate without losing the original restoration speed',async t=>{
   const page=await setup(t,{ad:true});
   assert.equal((await videoState(page)).rate,16);
-  await page.locator('video').evaluate(video=>{video.playbackRate=1;video.dispatchEvent(new Event('loadedmetadata'));});
+  await page.locator('video').evaluate(video=>{video.playbackRate=1;video.muted=false;video.dispatchEvent(new Event('loadedmetadata'));});
   await page.clock.runFor(100);
-  assert.equal((await videoState(page)).rate,16);
+  assert.deepEqual(await videoState(page),{rate:16,volume:.4,muted:true});
   await setAd(page,false);
   assert.equal((await videoState(page)).rate,1.5);
+});
+
+for(const audio of [{muted:false,volume:0},{muted:true,volume:.4},{muted:true,volume:0}]) {
+  test(`automatic ad mute restores existing mute=${audio.muted} and volume=${audio.volume}`,async t=>{
+    const page=await setup(t,{ad:true,...audio});
+    assert.deepEqual(await videoState(page),{rate:16,volume:audio.volume,muted:true});
+    await setAd(page,false);
+    assert.deepEqual(await videoState(page),{rate:1.5,...audio});
+  });
+}
+
+test('automatic acceleration remutes an ad even when the speed stays at 16x',async t=>{
+  const page=await setup(t,{ad:true});
+  await page.locator('video').evaluate(video=>{video.muted=false;video.dispatchEvent(new Event('loadedmetadata'));});
+  await page.clock.runFor(50);
+  assert.deepEqual(await videoState(page),{rate:16,volume:.4,muted:true});
+  await setAd(page,false);
+  assert.deepEqual(await videoState(page),{rate:1.5,volume:.4,muted:false});
 });
 
 test('automatic ad acceleration on another player does not cancel the manual session',async t=>{
