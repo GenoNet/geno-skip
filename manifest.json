@@ -1,14 +1,18 @@
 {
   "manifest_version": 3,
   "name": "じーのスキップ",
-  "version": "666.666",
-  "description": "地獄に落ちろ！！！",
+  "version": "666.667",
+  "description": "顔ボタンやキーで動画を3秒間16倍速に。元の再生速度・音量へ戻します。",
   "permissions": ["tabs","activeTab","scripting","storage"],
   "content_scripts": [
     {
       "matches": ["*://*/*"],
-      "js": ["content.js"]
+      "js": ["settings.js", "player-button.js", "content.js"],
+      "css": ["player-button.css"]
     }
+  ],
+  "web_accessible_resources": [
+    { "resources": ["assets/geno-faces.png"], "matches": ["http://*/*", "https://*/*"] }
   ],
   "action": {
     "default_popup": "popup.html",
