@@ -3,7 +3,7 @@
   "name": "じーのスキップ",
   "version": "666.667",
   "description": "顔ボタンやキーで動画を3秒間16倍速に。元の再生速度・音量へ戻します。",
-  "permissions": ["tabs","activeTab","scripting","storage"],
+  "permissions": ["activeTab", "storage"],
   "content_scripts": [
     {
       "matches": ["*://*/*"],
@@ -14,6 +14,7 @@
   "web_accessible_resources": [
     { "resources": ["assets/geno-faces.png"], "matches": ["http://*/*", "https://*/*"] }
   ],
+  "options_ui": { "page": "popup.html", "open_in_tab": true },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
