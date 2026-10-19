@@ -29,7 +29,7 @@ test('worker returns only its fixed PNG and shares the load across requests', as
   for (const result of results) {
     assert.equal(typeof result?.source, 'string');
     assert.ok(result.source.startsWith('data:image/png;base64,'));
-    assert.ok(Buffer.from(result.source.split(',')[1], 'base64').equals(fs.readFileSync(path.join(root, 'assets/geno-faces.png'))));
+    assert.ok(Buffer.from(result.source.split(',')[1], 'base64').equals(fs.readFileSync(path.join(root, 'assets/geno-face.png'))));
   }
   assert.equal(assetLoads.length, 1);
   assert.equal(calls.length, 0);

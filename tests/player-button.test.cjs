@@ -27,7 +27,8 @@ test('face resources are painted on HTML outside SVG resource loading',async t=>
     const image=new Image();image.src=getComputedStyle(face).backgroundImage.slice(5,-2);await image.decode();
     return {width:image.naturalWidth,height:image.naturalHeight};
   });
-  assert.deepEqual(size,{width:1774,height:887});
+  assert.equal(size.width,size.height);
+  assert.ok(size.width>=512);
 });
 
 test('face remains centered when native player styles change the button display',async t=>{
@@ -93,7 +94,7 @@ test('native SVG minimum sizes and margins cannot move the face outside its cent
   }
 });
 
-test('YouTube button changes face and spins throughout acceleration, restores on click', async t => {
+test('YouTube button keeps the default face and spins throughout acceleration, restores on click', async t => {
   const page = await openPage(t,{html:youtube});
   await loadContent(page);
   assert.equal(await page.locator('.ytp-right-controls .geno-skip-button').count(),1);
@@ -102,7 +103,7 @@ test('YouTube button changes face and spins throughout acceleration, restores on
   await button.click();
   assert.equal((await videoState(page)).rate,16);
   assert.equal(await button.getAttribute('aria-pressed'),'true');
-  assert.notEqual(await button.locator('.geno-skip-face').evaluate(e=>getComputedStyle(e).backgroundPosition),before);
+  assert.equal(await button.locator('.geno-skip-face').evaluate(e=>getComputedStyle(e).backgroundPosition),before);
   assert.notEqual(await button.locator('.geno-skip-face').evaluate(e=>getComputedStyle(e).animationName),'none');
   await button.click();
   assert.equal((await videoState(page)).rate,1);

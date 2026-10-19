@@ -21,7 +21,7 @@ importScripts('settings.js');
   function loadFaceSource() {
     if (!faceSource) faceSource = Promise.resolve()
       // Read the packaged asset in the extension origin, never in the site's frame.
-      .then(() => fetch(chrome.runtime.getURL('assets/geno-faces.png')))
+      .then(() => fetch(chrome.runtime.getURL('assets/geno-face.png')))
       .then(response => {
         if (!response.ok) throw new Error('Face image could not be loaded');
         return response.arrayBuffer();

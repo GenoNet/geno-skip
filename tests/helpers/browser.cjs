@@ -2,13 +2,13 @@ const { chromium } = require('playwright-core');
 const path = require('node:path');
 const fs = require('node:fs');
 const root = path.resolve(__dirname, '../..');
-const faceSource = `data:image/png;base64,${fs.readFileSync(path.join(root, 'assets/geno-faces.png')).toString('base64')}`;
+const faceSource = `data:image/png;base64,${fs.readFileSync(path.join(root, 'assets/geno-face.png')).toString('base64')}`;
 
 async function openPage(t, { html = '<video style="width:640px;height:360px"></video>', hostname = 'www.youtube.com', storage = {}, local = { debuggerSkip: false } } = {}) {
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE_PATH || '/usr/bin/chromium', headless: true });
   t.after(() => browser.close());
   const page = await browser.newPage();
-  await page.route('https://assets.test/**', route => route.fulfill({ contentType: 'image/png', headers: { 'Access-Control-Allow-Origin': '*' }, body: fs.readFileSync(path.join(root, 'assets/geno-faces.png')) }));
+  await page.route('https://assets.test/**', route => route.fulfill({ contentType: 'image/png', headers: { 'Access-Control-Allow-Origin': '*' }, body: fs.readFileSync(path.join(root, 'assets/geno-face.png')) }));
   await page.route(`https://${hostname}/**`, route => route.fulfill({ contentType: 'text/html', body: `<!doctype html><html><body>${html}</body></html>` }));
   await page.goto(`https://${hostname}/watch`);
   await page.exposeFunction('genoTestFaceSource', () => faceSource);

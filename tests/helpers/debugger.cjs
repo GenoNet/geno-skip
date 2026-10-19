@@ -71,9 +71,9 @@ async function connectWorker(t, page, { attachError, beforeAttach, beforeLocalRe
   };
   const context = vm.createContext({ URL, console, setTimeout, clearTimeout, chrome: api, btoa,
     fetch: async url => {
-      assert.equal(url, 'chrome-extension://geno-test/assets/geno-faces.png');
+      assert.equal(url, 'chrome-extension://geno-test/assets/geno-face.png');
       assetLoads.push(url);
-      return new Response(fs.readFileSync(path.join(root, 'assets/geno-faces.png')), { headers: { 'Content-Type': 'image/png' } });
+      return new Response(fs.readFileSync(path.join(root, 'assets/geno-face.png')), { headers: { 'Content-Type': 'image/png' } });
     }
   });
   context.importScripts = (...files) => files.forEach(file => vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context));

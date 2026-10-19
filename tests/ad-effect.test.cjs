@@ -81,17 +81,17 @@ test('keyboard and popup acceleration show the effect and remove it when stopped
   assert.deepEqual(await videoState(page), { rate: 1, volume: 1, muted: false });
 });
 
-test('each effect chooses a random face and keeps it during the same acceleration', async t => {
+test('keyboard, popup and ad effects always use the default face', async t => {
   const page = await setup(t);
-  await page.evaluate(() => { window.faceChoice = .1; Math.random = () => window.faceChoice; });
   await page.keyboard.press('s');
   const face = page.locator('.geno-skip-effect-face');
-  assert.equal(await face.evaluate(element => getComputedStyle(element).backgroundPositionX), '0%');
-  await page.evaluate(() => { window.faceChoice = .9; window.updateLocalSettings({ showSkipEffect: true }); });
-  assert.equal(await face.evaluate(element => getComputedStyle(element).backgroundPositionX), '0%');
+  assert.equal(await face.evaluate(element => getComputedStyle(element).backgroundPosition), '50% 50%');
   await page.keyboard.press('s');
   await page.evaluate(() => window.toggleMessage());
-  assert.equal(await face.evaluate(element => getComputedStyle(element).backgroundPositionX), '100%');
+  assert.equal(await face.evaluate(element => getComputedStyle(element).backgroundPosition), '50% 50%');
+  await page.evaluate(() => window.toggleMessage());
+  await setAd(page, true);
+  assert.equal(await face.evaluate(element => getComputedStyle(element).backgroundPosition), '50% 50%');
 });
 
 test('manual effects preserve an absolute video inside a static wrapper', async t => {

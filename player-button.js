@@ -175,7 +175,6 @@
           Object.assign(effect.style, { left: '0px', top: '0px', width: '1px', height: '1px' });
           const face = document.createElement('span');
           face.className = 'geno-skip-effect-face';
-          face.style.backgroundPosition = Math.random() < .5 ? 'left center' : 'right center';
           effect.append(face);
           root.append(effect);
           video.classList.add('geno-skip-effect-blur');
